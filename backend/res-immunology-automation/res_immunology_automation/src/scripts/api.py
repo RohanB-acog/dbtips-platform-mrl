@@ -354,19 +354,23 @@ async def get_dossier_dashboard(db: Session = Depends(get_db)):
             records = db.query(job_type).filter_by(status=record_status).all()
             for record in records:
                 data = {'target': None, 'disease': None}
-                data['target'] = record.get('target', None)
+                print("str(job_type): ", dir(job_type))
+                if job_type.__tablename__ == "target_dossier_status":
+                    data['target'] = record.target
                 data['disease'] = record.disease
                 data['submission_time'] = record.submission_time
                 data['processed_time'] = record.processed_time
                 data['error_count'] = record.error_count
                 all_records.append(data)
             return all_records
-
+        
         status_list = ['submitted', 'processing', 'processed', 'error']
         job_types = [DiseaseDossierStatus, TargetDossierStatus]
         for job_type in job_types:
             for status in status_list:
-                response[status] = fetch_records_by_status(job_type, status)
+                if status not in response:
+                    response[status] = []
+                response[status].extend(fetch_records_by_status(job_type, status))
 
         
 
