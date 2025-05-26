@@ -59,7 +59,7 @@ services:
 
 
   backend-llm:
-    container_name: 'dbtips-coe-disease-dossier-foundation-backend-llm'
+    container_name: 'dbtips-coe-backend-llm'
     build:
       context: disease-dossier-backend-llm/backend-llm
       dockerfile: Dockerfile
@@ -81,39 +81,13 @@ services:
 
   redis-llm:
     image: redis:latest
-    container_name: 'dbtips-coe-disease-dossier-chatbot-redis-llm'
+    container_name: 'dbtips-coe-redis-llm'
     restart: always
     volumes:
       - ./disease-dossier-backend-llm/backend-llm/redis/redis-data:/data
 
-  target-dossier-backend-llm:
-    container_name: 'dbtips-coe-target-dossier-foundation-backend-llm'
-    build:
-      context: backend-llm
-      dockerfile: Dockerfile
-    restart: always
-    volumes:
-      - ./backend-llm/static:/app/static
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - REDIS_HOST=target-dossier-redis-llm
-      - REDIS_PORT=6379
-      - PERPLEXITY_KEY=${PERPLEXITY_KEY}
-      - AACT_DB_NAME=${AACT_DB_NAME}
-      - AACT_DB_USER=${AACT_DB_USER}
-      - AACT_DB_PASSWORD=${AACT_DB_PASSWORD}
-      - AACT_DB_HOST=${AACT_DB_HOST}
-      - AACT_DB_PORT=${AACT_DB_PORT}
-
-  target-dossier-redis-llm:
-    image: redis:latest
-    container_name: 'target-coe-dossier-chatbot-redis-llm'
-    restart: always
-    volumes:
-      - ./backend-llm/redis/redis-data:/data
-
   redis:
-    container_name: 'dbtips-coe-dossier-foundation-redis'
+    container_name: 'dbtips-coe-dossier-redis'
     build:
       context: backend/redis
       dockerfile: Dockerfile
@@ -124,7 +98,7 @@ services:
       - ./backend/redis/redis-data:/data
 
   postgres:
-    container_name: 'dbtips-coe-dossier-foundation-postgres'
+    container_name: 'dbtips-coe-postgres'
     image: postgres:13 # Use the desired version of PostgreSQL
     restart: always
     environment:
@@ -140,7 +114,7 @@ services:
       - ./postgres_data:/var/lib/postgresql/data # Persist the data
 
   pgadmin:
-    container_name: 'dbtips-coe-dossier-foundation-pgadmin'
+    container_name: 'dbtips-coe-pgadmin'
     image: dpage/pgadmin4:latest
     restart: always
     environment:
