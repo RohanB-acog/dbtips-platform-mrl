@@ -134,6 +134,20 @@ Please analyze and summarize the GWAS Studies data as {gwas_data} and GWAS Assoc
 - You must use the data from this reference to provide a detailed response.
 """
 
+pipeline_target_summary_prompt="""
+Please analyze pipeline by target data and summarize it to deliver a comprehensive overview of the {pipeline_target_target}'s landscape:
+- From the dataset, focus on describing the biological role of {pipeline_target_target} and its association with {pipeline_target_diseases}, including its mechanism of action and the therapeutic modalities being investigated, such as small molecules, biologics, or gene therapies
+"""
+
+target_literature_summary_prompt="""
+Can you provide mechanistic insights into the role of {literature_target} in the pathogenesis of {literature_diseases}? Specifically, what pathways, biological processes, and cell types are implicated? Are there shared mechanisms across these diseases, and where do they converge or diverge in terms of immune response, tissue remodeling, or disease progression?
+
+Please refer to the following sources for information:
+{literature_urls}
+
+**Important Instructions**:
+- You must use the data from these references to provide a detailed response.
+"""
 
 PROMPT_TEMPLATES = {
     "rnaseq": rnaseq_data_summary_prompt.strip(),
@@ -144,7 +158,10 @@ PROMPT_TEMPLATES = {
     "pipeline_indications_all":pipeline_indications_all_summary_pompt.strip(),
     "patient_stories": patient_stories_prompt.strip(),
     "gwas": gwas_summary_prompt.strip(),
-    "gwas_all": gwas_summary_all_prompt.strip()
+    "gwas_all": gwas_summary_all_prompt.strip(),
+    "pipeline_target": pipeline_target_summary_prompt.strip(),
+    "target_literature": target_literature_summary_prompt.strip()
+
 }
 
 # Common format instructions

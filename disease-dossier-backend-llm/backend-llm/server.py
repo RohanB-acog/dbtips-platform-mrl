@@ -37,6 +37,7 @@ app_state = {
     "steps": [],
     "chat_history": [],
     "data":[],
+    "target_data": {},
     "patient_stories_disease": None
 }
 
@@ -188,7 +189,13 @@ This dataframe provides the details about the Patient Stories suffering from a d
 This dataframe provides the GWAS Studies information of a disease which includes details like: Traits, Summary Statistics, Study Accession, Authors etc.
 """, 
     "gwas_associations_df": """**gwas_associations_df**:
-This dataframe provides the GWAS Association information of a disease which includes details like: Variant and Risk Allele, rsID, Mapped gene(s), RAF etc"""
+This dataframe provides the GWAS Association information of a disease which includes details like: Variant and Risk Allele, rsID, Mapped gene(s), RAF etc""",
+    
+    "literature_df": """**Literature**"
+This dataframe provides a recent collection of disease research reviews for understanding the pathophysiology and therapeutic landscape of the disease.""",
+
+    "pipeline_target_df":"""**Pipeline by Targets**
+This dataframe provides clinical precedence for drugs with investigational or approved indications targeting a specific gene according to their curated mechanism of action."""
 
 }
 
@@ -320,6 +327,13 @@ def add_additional_topics_if_needed(response_object: dict, selected_ctx: str) ->
             "Trial Analysis": [
                 "How do clinical endpoints and patient cohort characteristics influence the success or failure of clinical trials for specific targets? ",
                 "What are the key differences in trial design, endpoints, or cohort characteristics between successful and failed clinical trials for the same targets? Provide the results in the form of a table."
+            ]
+        },
+        "pipeline_target": {
+            "Insights from clinical trials": [
+                "How does the mechanism of action of late-phase candidates compare to competitors in terms of innovation and clinical outcomes?",
+                "How do the competing trials stratify patients based on factors such as inclusion/exclusion criteria, trial summary, responder-non responder patients, biomarkers, primary and secondary endpoints used in trials?",
+                "Are there ongoing trials exploring the targets in combination with other agents (e.g., immune checkpoint inhibitors)?"
             ]
         },
         
