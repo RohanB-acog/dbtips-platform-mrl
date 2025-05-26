@@ -354,7 +354,6 @@ async def get_dossier_dashboard(db: Session = Depends(get_db)):
             records = db.query(job_type).filter_by(status=record_status).all()
             for record in records:
                 data = {'target': None, 'disease': None}
-                print("str(job_type): ", dir(job_type))
                 if job_type.__tablename__ == "target_dossier_status":
                     data['target'] = record.target
                 data['disease'] = record.disease
