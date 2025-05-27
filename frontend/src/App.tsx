@@ -1,7 +1,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Spin, Layout, FloatButton } from 'antd';
-
+import TargetIndication from './components/targetIndication';
 import Header from './components/header';
 import Footer from './components/footer';
 import { parseQueryParams } from './utils/parseUrlParams';
@@ -54,10 +54,8 @@ const AppContent = () => {
 	return (
 		<Layout style={{ width: '100%',  }}>
 			<Header app_state={appState} />
-			{/* <ExcelTemplate /> */}
-			{/* <ExportButton /> */}
-			{/* <div>{parse(htmlFile)}</div> */}
-			{/* <Search  /> */}
+			<TargetIndication target={appState.target} indications={appState.indications} />
+
 			<Layout
 				hasSider={true}
 				style={{ position: 'relative',  }}
