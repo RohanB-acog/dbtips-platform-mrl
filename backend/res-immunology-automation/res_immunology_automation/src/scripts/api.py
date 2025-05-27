@@ -231,7 +231,7 @@ async def get_dossier_status(request: TargetRequest, db: Session = Depends(get_d
         processed_diseases = []
         pending_diseases = []
                 
-        if target:
+        if target != "":
             if len(diseases):
                 
                 for disease in diseases:
@@ -318,7 +318,7 @@ async def get_dossier_status(request: TargetRequest, db: Session = Depends(get_d
                 if disease_record is not None:
                     cache_status: str = disease_record.status
                     if cache_status == 'processed':
-                        processed_diseases.append() 
+                        processed_diseases.append(disease) 
                     elif cache_status in ['processing','submitted','error']:
                         pending_diseases.append(disease) 
                                 

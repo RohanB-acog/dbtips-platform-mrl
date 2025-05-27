@@ -880,42 +880,6 @@ def get_outcome_status_openai(pubmed_ids: List[str], disease_name: str) -> str:
         """
 
         try:
-        #     # Create an OpenAI client
-        #     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        #     # Make a call to OpenAI's GPT model
-        #     response = client.chat.completions.create(
-        #         model=LLM, 
-        #         messages=[
-        #             {"role": "system", "content": "You are an expert in analyzing and classifying scientific research."},
-        #             {"role": "user", "content": prompt}
-        #         ],
-        #         max_tokens=4096,  # Adjust as needed
-        #         n=1,
-        #         stop=None,
-        #         temperature=0.2  # Use a low temperature for consistent outputs
-        #     )
-
-        #     # Extract the response content
-        #     response_content = response.choices[0].message.content
-        #     # print(f"OpenAI Response: {response_content}")
-
-        #     # Parse the JSON from the response content
-        #     classification = json.loads(response_content).get("classification", "Indeterminate")
-        #     # print(f"Classification: {classification}")
-
-        #     # Return the classification status
-        #     if "Success" in classification:
-        #         return "Success"
-        #     elif "Failed" in classification:
-        #         return "Failed"
-        #     elif "Indeterminate" in classification:
-        #         return "Indeterminate"
-        #     else:
-        #         return "Not Known"
-
-        # except Exception as e:
-        #     print(f"An error occurred while invoking OpenAI: {e}, for pmids: {pubmed_ids}")
-        #     return "Not Known"
 
             retries = 3
             delay = 2  # starting delay in seconds
