@@ -216,7 +216,7 @@ async def download_file(file_path: str):
 @app.post("/dossier/dossier-status/", tags = ["Dossier Status"])
 async def get_dossier_status(request: TargetRequest, db: Session = Depends(get_db)):
     try:
-        diseases = request.diseases
+        diseases = [disease.lower() for disease in request.diseases]
         target = request.target.lower().strip()
 
         # {"procesed" :[{"target" : <target> , "diseases": [obesity]], error: [{"target" : <target> , "diseases": [T2D]], "processing: []}
