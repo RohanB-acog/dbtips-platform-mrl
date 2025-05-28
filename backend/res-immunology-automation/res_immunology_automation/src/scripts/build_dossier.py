@@ -10,7 +10,8 @@ from api import get_evidence_literature_semaphore, get_mouse_studies, \
                 get_ontology, get_protein_expressions, get_subcellular, \
                 get_anatomy, get_protein_structure, get_target_mouse_studies, \
                 get_targetability, get_gene_essentiality_map, get_tractability, \
-                get_paralogs, get_target_pipeline_all_semaphore, get_evidence_target_literature
+                get_paralogs, get_target_pipeline_all_semaphore, get_evidence_target_literature, \
+                search_patents
                 
 import logging
 import time
@@ -142,7 +143,11 @@ async def fetch_error_count(db, **values):
         
     else:
         query = select(TargetDossierStatus).where(
-            TargetDossierStatus.disease == disease and TargetDossierStatus.target==target)
+            and_(
+        TargetDossierStatus.disease == disease,
+        TargetDossierStatus.target == target
+            )
+        )
     
     result =  await db.execute(query)
     
@@ -170,7 +175,7 @@ async def update_record_status(db, table, **values):
 
         update_stmt = (
             update(table)
-            .where(table.disease == disease and table.target==target)
+            .where(and_(table.disease == disease, table.target == target))
             .values(**params)
         )
 
@@ -291,7 +296,8 @@ async def run_endpoints(job_data):
         target_disease_endpoints = [
             # get_target_pipeline_semaphore,
             get_target_pipeline_all_semaphore,
-            get_evidence_target_literature
+            get_evidence_target_literature,
+            search_patents
                                 ]
         target = job_data.get('target', None)
         disease = job_data.get('disease', None)
@@ -344,15 +350,22 @@ async def run_endpoints(job_data):
                 await asyncio.sleep(5)
 
             if disease == 'no-disease':
-                disease = []
+                pipeline_inp = [""]
+                oth_inp = []
             else:
-                disease = [disease]
+                pipeline_inp = [disease]
+                oth_inp = [disease]
 
             for endpoint in target_disease_endpoints:
         
                 try:
-                    request_data = TargetRequest(target=target, diseases=[disease])
-                    logging.info(f"\t\t\tCalling {endpoint.__name__} for target: {target} and disease: {disease}")
+                    if endpoint.__name__  == "get_target_pipeline_all_semaphore":
+                        request_data = TargetRequest(target=target, diseases=pipeline_inp)
+                        logging.info(f"\t\t\tCalling {endpoint.__name__} for target: {target} and disease: {pipeline_inp}")
+                    else:
+                        request_data = TargetRequest(target=target, diseases=oth_inp)
+                        logging.info(f"\t\t\tCalling {endpoint.__name__} for target: {target} and disease: {oth_inp}")
+                    
                     if endpoint.__name__ in ['get_evidence_target_literature']:
                         response = await endpoint(request_data, db=db )
                     else:
