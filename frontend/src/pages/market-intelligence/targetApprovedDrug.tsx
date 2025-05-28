@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Empty,Modal } from "antd";
+import { Empty,Modal,Select } from "antd";
 import LoadingButton from "../../components/loading";
 import Table from "../../components/table";
 import { capitalizeFirstLetter } from "../../utils/helper";
@@ -7,7 +7,7 @@ import ColumnSelector from "../../components/columnFilter";
 import { useQuery } from "react-query";
 import BlackboxWarningCard from "./blackboxWarningCard";
 import { fetchData } from "../../utils/fetchData";
-import DiseaseFilter from "../../components/diseaseFilter";
+const { Option } = Select;
 function createApprovedDrugsPayload(data) {
   const diseaseMap = {};
   data.forEach(({ Disease, Drug }) => {
@@ -157,16 +157,16 @@ const ApprovedDrug = ({
   };
   const filteredData = useMemo(() => {
     if (!approvedDrugData) return [];
-
-    const filtered = selectedDisease.includes("All")
-      ? approvedDrugData.filter((data) => data.ApprovalStatus === "Approved")
-      : approvedDrugData.filter(
+    const data=approvedDrugData?.target_pipeline;
+    const filtered =selectedDisease.length===0
+      ? approvedDrugData?.target_pipeline?.filter((data) => data.ApprovalStatus === "Approved")
+      : approvedDrugData?.target_pipeline?.filter(
           (data) =>
             selectedDisease.some(
               (disease) => disease.toLowerCase() === data.Disease.toLowerCase()
             ) && data.ApprovalStatus === "Approved"
         );
-
+console.log("filtered", filtered,data);
     // Unique data filtering
     const uniqueKeys = new Set(
       filtered.map((item) => `${item.Disease}-${item.Drug.toLowerCase()}`)
@@ -189,7 +189,25 @@ const ApprovedDrug = ({
   useEffect(() => {
     setSelectedDisease(indications);
   }, [indications]);
-  const showLoading = isFetchingData || loading;
+  const showLoading = isFetchingData || loading || blackboxWarningIsLoading;
+  const handleDiseaseChange = (value: string[]) => {
+    console.log("value",value)
+    if (value.includes("All")) {
+      // If "All" is selected, select all diseases but don't include "All" in display
+      setSelectedDisease(["All"]);
+      console.log("selectedDisease", selectedDisease);
+    } else if (
+      selectedDisease.length === indications.length &&
+      value.length < indications.length
+    ) {
+      // If coming from "all selected" state and deselecting, just use the new selection
+      setSelectedDisease(value);
+    } else {
+      // Normal selection behavior
+      setSelectedDisease(value);
+    }
+  };
+  
 
   return (
     <section id="approvedDrug" className="px-[5vw]">
@@ -198,15 +216,30 @@ const ApprovedDrug = ({
         This section lists drugs targeting {target} that have been approved by
         regulatory authorities for one or more diseases.
       </p>
-      {approvedDrugData?.length > 0 && (
+      {approvedDrugData && (
          <div className="flex justify-between">
          <div>
-         <DiseaseFilter
-             allDiseases={indications}
-             selectedDiseases={selectedDisease}
-             onChange={setSelectedDisease}
-             disabled={blackboxWarningIsLoading}
-           />
+         <div>
+                    <span className="mt-1 mr-1">Disease: </span>
+                    <Select
+                      style={{ width: 300 }}
+                      onChange={handleDiseaseChange}
+                      value={selectedDisease}
+                      mode="multiple"
+                      maxTagCount="responsive"
+                      allowClear={true}
+                      placeholder="Select diseases"
+                      // disabled={isLoading}
+                    >
+                      
+                      {approvedDrugData?.available_diseases.map((indication) => (
+                        indication!="all" &&
+                        <Option key={indication} value={capitalizeFirstLetter(indication.replace(/_/g, " "))}>
+                          {capitalizeFirstLetter(indication.replace(/_/g, " "))}
+                        </Option>
+                      ))}
+                    </Select>
+                  </div>
            
          </div>
          <ColumnSelector

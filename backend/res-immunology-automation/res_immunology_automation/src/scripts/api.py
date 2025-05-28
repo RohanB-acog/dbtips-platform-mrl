@@ -39,7 +39,7 @@ from services import (
     parse_publications,
     fetch_and_parse_diseases_known_drugs,
     fetch_and_parse_publications_for_target,
-    parse_knowndrugs_all
+    parse_knowndrugs_all,
     # fetch_disease_profile,
     # parse_disease_association,
     # parse_safety_events,

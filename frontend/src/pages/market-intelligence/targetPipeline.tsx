@@ -227,7 +227,7 @@ const CompetitiveLandscape = ({target,indications}) => {
     <div className="mt-8">
       <section id="approvedDrug">
         <ApprovedDrug
-          approvedDrugData={targetData?.target_pipeline}
+          approvedDrugData={targetData}
           loading={targetDataLoading}
           error={targetError}
           indications={indications}

@@ -1,12 +1,10 @@
-from pydantic import BaseModel
-from typing import Literal, List
 from pydantic import BaseModel, Field, constr
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Literal
 
 
 class TargetRequest(BaseModel):
     target: str
-    diseases: List[str]
+    diseases: List[str] = Field(default_factory=list)
 
 class TargetOnlyRequest(BaseModel):
     target: constr(min_length=1)  # Requires at least one character

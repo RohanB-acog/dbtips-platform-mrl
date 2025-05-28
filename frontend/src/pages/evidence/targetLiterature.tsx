@@ -130,7 +130,7 @@ const Evidence = ({target,indications}) => {
   }, [selectedLiterature]);
 
   const handleLLMCall = () => {
-    invoke("literature", { send: false });
+    invoke("target-literature", { send: false });
   };
 
   return (
