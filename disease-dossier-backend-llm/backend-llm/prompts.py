@@ -140,10 +140,10 @@ Please analyze pipeline by target data and summarize it to deliver a comprehensi
 """
 
 target_literature_summary_prompt="""
-Can you provide mechanistic insights into the role of {literature_target} in the pathogenesis of {literature_diseases}? Specifically, what pathways, biological processes, and cell types are implicated? Are there shared mechanisms across these diseases, and where do they converge or diverge in terms of immune response, tissue remodeling, or disease progression?
+Can you provide mechanistic insights into the role of {target_literature_target} in the pathogenesis of {target_literature_diseases}? Specifically, what pathways, biological processes, and cell types are implicated? Are there shared mechanisms across these diseases, and where do they converge or diverge in terms of immune response, tissue remodeling, or disease progression?
 
 Please refer to the following sources for information:
-{literature_urls}
+{target_literature_urls}
 
 **Important Instructions**:
 - You must use the data from these references to provide a detailed response.
@@ -174,6 +174,7 @@ You must use the following format for your response only for this question and s
 
 def get_prompt_for_datasets(selected_datasets,context_variables):
     # Handle single widget case
+    
     if len(selected_datasets) == 1:
         dataset = selected_datasets[0]
         if dataset in PROMPT_TEMPLATES:
