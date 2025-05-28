@@ -23,15 +23,6 @@ const Header = ({ app_state }) => {
         { key: "sub-cellular-location", label: "Subcellular localization" },
       ],
     },
-
-    {
-      key: "literature",
-      label: "Evidence",
-      children: [
-        { key: "literature-evidence", label: "Literature" },
-        { key: "model-studies", label: "Target perturbation phenotypes" },
-      ],
-    },
     {
       key: "market-intelligence",
       label: "Market Intelligence",
@@ -41,6 +32,16 @@ const Header = ({ app_state }) => {
         { key: "patent", label: "Patents" },
       ],
     },
+
+    {
+      key: "literature",
+      label: "Evidence",
+      children: [
+        { key: "literature-evidence", label: "Literature" },
+        { key: "model-studies", label: "Target perturbation phenotypes" },
+      ],
+    },
+   
     {
       key: "target-assessment",
       label: "Target Assessment",
