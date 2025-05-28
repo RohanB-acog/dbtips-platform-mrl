@@ -18,6 +18,8 @@ import Data from './pages/data';
 // import CoverLetter from './pages/coverLetter';
 import Models from './pages/models';
 import MarketIntelligence from './pages/market-intelligence';
+import userAvatar from './assets/userAvatar.svg';
+import assistantAvatar from "./assets/avatar3.jpg"
 import TargetAssessment from './pages/target-assessment';
 import DiseaseProfile from './pages/disease-profile';
 // import Genomics from "./pages/genomics"
@@ -110,7 +112,7 @@ const AppContent = () => {
 					}}
 				>
 					<div className='h-[100%] w-[30%] z-100 fixed pb-10 '>
-						<ChatBot baseURL='/llm' />
+						<ChatBot baseURL='/llm' userAvatar={userAvatar} assistantAvatar={assistantAvatar} />
 					</div>
 				</Layout.Sider>
 			</Layout>
