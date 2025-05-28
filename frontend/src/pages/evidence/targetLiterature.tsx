@@ -116,7 +116,7 @@ const Evidence = ({target,indications}) => {
         ...new Set(selectedLiterature.map((data: any) => data.Disease)),
       ];
       // console.log(llmData);
-      register("target-literature", {
+      register("target_literature", {
         urls: urls,
         target: target,
         diseases: diseases,
@@ -130,7 +130,7 @@ const Evidence = ({target,indications}) => {
   }, [selectedLiterature]);
 
   const handleLLMCall = () => {
-    invoke("literature", { send: false });
+    invoke("target_literature", { send: false });
   };
 
   return (

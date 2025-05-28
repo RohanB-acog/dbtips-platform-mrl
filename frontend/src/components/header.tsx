@@ -1,60 +1,60 @@
-import { useState, useEffect,   } from 'react';
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Dropdown } from 'antd';
-import AganithaLogo from '../assets/aganitha-logo.png';
-
+import { useState, useEffect } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Dropdown } from "antd";
+import AganithaLogo from "../assets/aganitha-logo.png";
 
 const Header = ({ app_state }) => {
-	const location = useLocation();
-	const navigate = useNavigate();
-	const [showNavMenu, setShowNavMenu] = useState(true);
-	const [selectedKey, setSelectedKey] = useState(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [showNavMenu, setShowNavMenu] = useState(true);
+  const [selectedKey, setSelectedKey] = useState(null);
 
-	// Menu groups
-	const targetMenuItems = [
-		{
-			key: 'target-biology',
-			label: 'Target Overview',
-			children: [
-				{ key: 'target-description', label: 'Target description' },
-				{ key: 'taxonomy', label: 'Taxonomy' },
-				{ key: 'ontology', label: 'Ontology' },
-				{ key: 'protein-expression', label: 'RNA/Protein expressions' },
-				{ key: 'protein-structure', label: 'Protein structure' },
-				{ key: 'sub-cellular-location', label: 'Subcellular localization' },
-			],
-		},
-		
+  // Menu groups
+  const targetMenuItems = [
     {
-			key: 'literature',
-			label: 'Evidence',
-			children: [
-				{ key: 'literature-evidence', label: 'Literature' },
-				{ key: 'model-studies', label: 'Target perturbation phenotypes' },
-			],
-		},
-		{
-			key: 'market-intelligence',
-			label: 'Market Intelligence',
-			children: [
-				{ key: 'approvedDrug', label: 'Approved drugs' },
-				{ key: 'pipeline-by-target', label: 'Target pipeline' },
-				{ key: 'patent', label: 'Patents' },
-			],
-		},
+      key: "target-biology",
+      label: "Target Overview",
+      children: [
+        { key: "target-description", label: "Target description" },
+        { key: "taxonomy", label: "Taxonomy" },
+        { key: "ontology", label: "Ontology" },
+        { key: "protein-expression", label: "RNA/Protein expressions" },
+        { key: "protein-structure", label: "Protein structure" },
+        { key: "sub-cellular-location", label: "Subcellular localization" },
+      ],
+    },
     {
-			key: 'target-assessment',
-			label: 'Target Assessment',
-			children: [
-				{ key: 'targetability', label: 'Targetability' },
-				{ key: 'tractability', label: 'Tractability' },
-				{ key: 'paralogs', label: 'Paralogs' },
-				{ key: 'geneEssentialityMap', label: 'Gene essentiality map' },
-			],
-		},
-	];
+      key: "market-intelligence",
+      label: "Market Intelligence",
+      children: [
+        { key: "approvedDrug", label: "Approved drugs" },
+        { key: "pipeline-by-target", label: "Target pipeline" },
+        { key: "patent", label: "Patents" },
+      ],
+    },
 
-	const diseaseMenuItems = [
+    {
+      key: "literature",
+      label: "Evidence",
+      children: [
+        { key: "literature-evidence", label: "Literature" },
+        { key: "model-studies", label: "Target perturbation phenotypes" },
+      ],
+    },
+   
+    {
+      key: "target-assessment",
+      label: "Target Assessment",
+      children: [
+        { key: "targetability", label: "Targetability" },
+        { key: "tractability", label: "Tractability" },
+        { key: "paralogs", label: "Paralogs" },
+        { key: "geneEssentialityMap", label: "Gene essentiality map" },
+      ],
+    },
+  ];
+
+  const diseaseMenuItems = [
     {
       key: "disease-profile",
       label: "Disease Overview",
@@ -85,7 +85,7 @@ const Header = ({ app_state }) => {
         },
       ],
     },
-  
+
     {
       key: "market-intelligence",
       label: "Market Intelligence",
@@ -97,7 +97,7 @@ const Header = ({ app_state }) => {
           label: "Opinion leaders",
           children: [
             { key: "siteInvetigators", label: "Site investigators" },
-  
+
             { key: "kol", label: "Key influential leaders" },
             //   { key: 'kol', label: 'Key researchers' },
           ],
@@ -154,7 +154,7 @@ const Header = ({ app_state }) => {
         },
       ],
     },
-  
+
     {
       key: "model-studies",
       label: "Models",
@@ -167,50 +167,50 @@ const Header = ({ app_state }) => {
     },
   ];
 
-	const bothMenuItems = [
-  
+  const bothMenuItems = [
     {
-      key: 'target-biology',
-      label: 'Target Overview',
+      key: "target-biology",
+      label: "Target Overview",
       children: [
-        
         {
-          key: 'target-description',
-          label: 'Target description',
+          key: "target-description",
+          label: "Target description",
         },
         {
-          key: 'taxonomy',
-          label: 'Taxonomy',
+          key: "taxonomy",
+          label: "Taxonomy",
         },
         {
-          key: 'ontology',
-          label: 'Ontology',
+          key: "ontology",
+          label: "Ontology",
         },
         {
-          key: 'protein-expression',
-          label: 'RNA/Protein expressions',
+          key: "protein-expression",
+          label: "RNA/Protein expressions",
         },
         {
-          key: 'protein-structure',
-          label: 'Protein structure',
+          key: "protein-structure",
+          label: "Protein structure",
         },
         {
-          key: 'sub-cellular-location',
-          label: 'Subcellular localization',
+          key: "sub-cellular-location",
+          label: "Subcellular localization",
         },
       ],
     },
-    
+
     {
-      key: 'disease-profile',
-      label: 'Disease Overview',
+      key: "disease-profile",
+      label: "Disease Overview",
       disabled: false,
-      children:[
+      children: [
         {
-          key:`disease-description`, label:`Description`,
+          key: `disease-description`,
+          label: `Description`,
         },
         {
-          key:`disease-ontology`, label:`Ontology`
+          key: `disease-ontology`,
+          label: `Ontology`,
         },
         {
           label: "Diagnostics and Biomarkers",
@@ -227,46 +227,16 @@ const Header = ({ app_state }) => {
             },
           ],
         },
-        
-      ]
+      ],
     },
-  
-    
-    
+
     {
-  
-      key: 'literature',
-      label: 'Evidence',
+      key: "market-intelligence",
+      label: "Market Intelligence",
       children: [
-        { key: 'literature-evidence', label: 'Literature' },
-        // { key: 'knowledge-graph-evidence', label: 'Disease Pathophysiology' },
-        // {
-        // 	key: '',
-        // 	label: 'Genomic Evidence',
-        // 	disabled: true,
-        // },
-        {
-          key: "knowledge-graph-evidence",
-          label: "Disease pathways",
-        },
-        {
-          key: 'model-studies',
-          label: 'Target perturbation phenotypes',
-        },
-        // {
-        // 	key: 'genomics',
-        // 	label: 'Functional Genomics',
-        // },
-        // {
-        // 	key: 'rnaSeq',
-        // 	label: 'RNA-seq Datasets',
-  
-        // },
-        // {
-        // 	key: '',
-        // 	label: 'Real World Evidence',
-        // 	disabled: true,
-        // },
+        { key: "approvedDrug", label: "Approved drugs" },
+        { key: "pipeline-by-target", label: "Target pipeline" },
+        { key: "patent", label: "Patents" },
       ],
     },
     {
@@ -295,177 +265,186 @@ const Header = ({ app_state }) => {
             },
           ],
         },
-      ]
-    },
-    {
-      key: 'market-intelligence',
-      label: 'Market Intelligence',
-      children: [
-        {key:"approvedDrug", label:"Approved drugs"},
-        { key: 'pipeline-by-target', label: 'Target pipeline' },
-        { key: 'patent', label: 'Patents' },
-  
-      //   { key: 'pipeline-by-indications', label: 'Indication pipeline' },
-      //   {
-      // 	key: 'kol',
-      // 	label: 'Opinion leaders',
-      // 	children: [
-      // 	  { key: 'kol', label: 'Site investigators', disabled:true },
-      // 	  { key: 'kol', label: 'Key influential leaders' },
-      // 	//   { key: 'kol', label: 'Key researchers' },
-          
-      // 	]
-      //   }
-      ]
-      },
-      
-      {
-        key: "model-studies",
-        label: "Models",
-        children: [
-          {
-            key: "model-studies",
-            label: "Animal models ",
-          },
-        ],
-      },
-    {
-      key: 'target-assessment',
-      label: 'Target Assessment',
-      children: [
-        {
-          key: 'targetability',
-          label: 'Targetability',
-        },
-        {
-          key: 'tractability',
-          label: 'Tractability',
-        },
-        {
-          key: 'paralogs',
-          label: 'Paralogs',
-        },
-        {
-          key:"geneEssentialityMap",
-          label:"Gene essentiality map"
-        },
-        
       ],
-      
     },
-  ];;
 
-	// Select menu items based on state
-	let menuItems = [];
-	const hasTarget = !!app_state.target;
-	const hasIndications = app_state.indications && app_state.indications.length > 0;
+    {
+      key: "literature",
+      label: "Evidence",
+      children: [
+        { key: "literature-evidence", label: "Literature" },
 
-	if (hasTarget && hasIndications) {
-		menuItems = [ ...bothMenuItems];
-	} else if (hasTarget) {
-		menuItems = targetMenuItems;
-	} else if (hasIndications) {
-		menuItems = diseaseMenuItems;
-	}
+        {
+          key: "knowledge-graph-evidence",
+          label: "Disease pathways",
+        },
+        {
+          key: "model-studies",
+          label: "Target perturbation phenotypes",
+        },
+      ],
+    },
 
-	// Toggle nav visibility based on current route
-	useEffect(() => {
-		setShowNavMenu(!(location.pathname === '/' || location.pathname === '/home'));
-	}, [location]);
+    {
+      key: "model-studies",
+      label: "Models",
+      children: [
+        {
+          key: "model-studies",
+          label: "Animal models ",
+        },
+      ],
+    },
+    {
+      key: "target-assessment",
+      label: "Target Assessment",
+      children: [
+        {
+          key: "targetability",
+          label: "Targetability",
+        },
+        {
+          key: "tractability",
+          label: "Tractability",
+        },
+        {
+          key: "paralogs",
+          label: "Paralogs",
+        },
+        {
+          key: "geneEssentialityMap",
+          label: "Gene essentiality map",
+        },
+      ],
+    },
+  ];
 
-	const scrollIntoView = (id) => {
-		const section = document.getElementById(id);
-		if (!section) return;
-		const headerOffset = location.pathname === "/" ? 60 : 130;
-		const elementPosition = section.getBoundingClientRect().top;
-		const offsetPosition = elementPosition + window.scrollY - headerOffset;
+  // Select menu items based on state
+  let menuItems = [];
+  const hasTarget = !!app_state.target;
+  const hasIndications =
+    app_state.indications && app_state.indications.length > 0;
 
-		window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
-	};
+  if (hasTarget && hasIndications) {
+    menuItems = [...bothMenuItems];
+  } else if (hasTarget) {
+    menuItems = targetMenuItems;
+  } else if (hasIndications) {
+    menuItems = diseaseMenuItems;
+  }
 
-	const navigateWithParams = (path, key) => {
-		const target = app_state.target || '';
-		const indications = (app_state.indications || [])
-			.map((indication) => `"${indication}"`)
-			.join(',');
-		navigate(`${path}?target=${target}&indications=${indications}`);
-		setTimeout(() => scrollIntoView(key), 250);
-	};
+  // Toggle nav visibility based on current route
+  useEffect(() => {
+    setShowNavMenu(
+      !(location.pathname === "/" || location.pathname === "/home")
+    );
+  }, [location]);
 
-	const buildUrlWithIndications = (baseUrl, target, indications) => {
-		const searchParams = new URLSearchParams();
-		if (target) searchParams.set('target', target);
-		if (indications?.length) {
-			const encodedIndications = indications.map((i) => `"${i}"`).join(',');
-			searchParams.set('indications', encodedIndications);
-		}
-		return `${baseUrl}?${searchParams.toString()}`;
-	};
+  const scrollIntoView = (id) => {
+    const section = document.getElementById(id);
+    if (!section) return;
+    const headerOffset = location.pathname === "/" ? 60 : 130;
+    const elementPosition = section.getBoundingClientRect().top;
+    const offsetPosition = elementPosition + window.scrollY - headerOffset;
 
-	const handlePressEffect = (e) => {
-		e.target.classList.add('pressed');
-		setTimeout(() => e.target.classList.remove('pressed'), 300);
-	};
+    window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+  };
 
-	return (
-		<header className='border-b sticky top-0 z-10 bg-white pl-[5vw] py-4'>
-			<div className='flex items-center justify-between'>
-				<Link to={buildUrlWithIndications("/", app_state.target, app_state.indications)} className='flex items-center gap-x-2 hover:text-black '>
-					<img width={90} src={AganithaLogo} alt='Aganitha' />
-					<div className='w-[1px] h-4 bg-[#555]' />
-					<h2 className='text-base'>DBTIPS<sup>TM</sup> - Disease & Target Dossier</h2>
-				</Link>
+  const navigateWithParams = (path, key) => {
+    const target = app_state.target || "";
+    const indications = (app_state.indications || [])
+      .map((indication) => `"${indication}"`)
+      .join(",");
+    navigate(`${path}?target=${target}&indications=${indications}`);
+    setTimeout(() => scrollIntoView(key), 250);
+  };
 
-				{showNavMenu && (
-					<nav className='flex items-center px-2 mr-5 gap-1'>
-						{menuItems.map((page, index) => (
-							<div key={index}>
-								<Dropdown
-									menu={{
-										items: page.children || [],
-										onClick: (e) => {
-											setSelectedKey(e.key);
-											if (page.key !== location.key) {
-												navigateWithParams(`/${page.key}`, e.key);
-											} else {
-												scrollIntoView(e.key);
-											}
-										},
-										selectable: true,
-										selectedKeys: [selectedKey],
-									}}
-								>
-									{page.disabled ? (
-										<span className='text-base cursor-not-allowed text-zinc-400'>
-											{page.label}
-										</span>
-									) : (
-										<NavLink
-											to={buildUrlWithIndications(`/${page.key}`, app_state.target, app_state.indications)}
-											className={"nav-link"}
-											onMouseDown={handlePressEffect}
-										>
-											<span className='flex items-center'>
-												<span className='text-base px-2 border-gray-200'>
-													{page.label}
-													{page.children && (
-														<span className='material-symbols-outlined text-2xl align-middle'>
-															arrow_drop_down
-														</span>
-													)}
-												</span>
-											</span>
-										</NavLink>
-									)}
-								</Dropdown>
-							</div>
-						))}
-					</nav>
-				)}
-			</div>
-		</header>
-	);
+  const buildUrlWithIndications = (baseUrl, target, indications) => {
+    const searchParams = new URLSearchParams();
+    if (target) searchParams.set("target", target);
+    if (indications?.length) {
+      const encodedIndications = indications.map((i) => `"${i}"`).join(",");
+      searchParams.set("indications", encodedIndications);
+    }
+    return `${baseUrl}?${searchParams.toString()}`;
+  };
+
+  const handlePressEffect = (e) => {
+    e.target.classList.add("pressed");
+    setTimeout(() => e.target.classList.remove("pressed"), 300);
+  };
+
+  return (
+    <header className="border-b sticky top-0 z-10 bg-white pl-[5vw] py-4">
+      <div className="flex items-center justify-between">
+        <Link
+          to={buildUrlWithIndications(
+            "/",
+            app_state.target,
+            app_state.indications
+          )}
+          className="flex items-center gap-x-2 hover:text-black "
+        >
+          <img width={90} src={AganithaLogo} alt="Aganitha" />
+          <div className="w-[1px] h-4 bg-[#555]" />
+          <h2 className="text-base">
+            DBTIPS<sup>TM</sup> - Disease & Target Dossier
+          </h2>
+        </Link>
+
+        {showNavMenu && (
+          <nav className="flex items-center px-2 mr-5 gap-1">
+            {menuItems.map((page, index) => (
+              <div key={index}>
+                <Dropdown
+                  menu={{
+                    items: page.children || [],
+                    onClick: (e) => {
+                      setSelectedKey(e.key);
+                      if (page.key !== location.key) {
+                        navigateWithParams(`/${page.key}`, e.key);
+                      } else {
+                        scrollIntoView(e.key);
+                      }
+                    },
+                    selectable: true,
+                    selectedKeys: [selectedKey],
+                  }}
+                >
+                  {page.disabled ? (
+                    <span className="text-base cursor-not-allowed text-zinc-400">
+                      {page.label}
+                    </span>
+                  ) : (
+                    <NavLink
+                      to={buildUrlWithIndications(
+                        `/${page.key}`,
+                        app_state.target,
+                        app_state.indications
+                      )}
+                      className={"nav-link"}
+                      onMouseDown={handlePressEffect}
+                    >
+                      <span className="flex items-center">
+                        <span className="text-base px-2 border-gray-200">
+                          {page.label}
+                          {page.children && (
+                            <span className="material-symbols-outlined text-2xl align-middle">
+                              arrow_drop_down
+                            </span>
+                          )}
+                        </span>
+                      </span>
+                    </NavLink>
+                  )}
+                </Dropdown>
+              </div>
+            ))}
+          </nav>
+        )}
+      </div>
+    </header>
+  );
 };
-
 
 export default Header;
