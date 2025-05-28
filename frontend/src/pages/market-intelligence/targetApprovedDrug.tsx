@@ -100,6 +100,7 @@ const ApprovedDrug = ({
         return (
           <div>
             {drug.drugWarnings.map((warning, index) => (
+              warning.toxicityClass!=null &&
               <span
                 key={`${warning.toxicityClass}-${index}`}
                 onClick={() =>
