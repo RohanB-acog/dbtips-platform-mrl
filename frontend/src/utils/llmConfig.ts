@@ -21,7 +21,7 @@ export const config = {
 			description_prompt: '{$data}',
 		},
 		{
-			id: 'target-literature',
+			id: 'target_literature',
 			label: 'Literature',
 			description_prompt: '{$data}',
 		},
