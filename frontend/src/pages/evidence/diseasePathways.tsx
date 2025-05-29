@@ -28,7 +28,7 @@ interface NetworkBiologyProps {
   target?: string;
 }
 
-const DiseasePathways: React.FC<NetworkBiologyProps> = ({ indications,target }) => {
+const DiseasePathways: React.FC<NetworkBiologyProps> = ({ indications, target }) => {
   const { token } = theme.useToken();
   const [selectedTarget, setSelectedTarget] = useState<string | undefined>(
     target?.toUpperCase()
@@ -39,6 +39,13 @@ const DiseasePathways: React.FC<NetworkBiologyProps> = ({ indications,target }) 
 
   const payload = { diseases: indications };
 
+  // Set initial target when component mounts or target prop changes
+  useEffect(() => {
+    if (target) {
+      setSelectedTarget(target.toUpperCase());
+    }
+  }, [target]); // Removed geneSet from dependency array
+
   const {
     data: networkBiologyData,
     error: networkBiologyError,
@@ -46,12 +53,12 @@ const DiseasePathways: React.FC<NetworkBiologyProps> = ({ indications,target }) 
   } = useQuery<NetworkBiologyData>(
     ["DiseasePathways", payload],
     () => fetchData(payload, "/evidence/network-biology/"),
-    { enabled: indications.length > 0 ,
+    { 
+      enabled: indications.length > 0,
       refetchOnWindowFocus: false,
       staleTime: 5 * 60 * 1000,
       refetchOnMount: false,
     }
-
   );
 
   // Collapse Panel Styling
@@ -68,19 +75,19 @@ const DiseasePathways: React.FC<NetworkBiologyProps> = ({ indications,target }) 
   useEffect(() => {
     if (networkBiologyData) {
       const genes = Array.from(
-        new Set(
-          Object.values(networkBiologyData).flatMap((condition) =>
+        new Set([
+          ...(target ? [target.toUpperCase()] : []),
+          ...Object.values(networkBiologyData).flatMap((condition) =>
             condition.results.flatMap((result) =>
               result?.gene_symbols.map((symbol) => symbol.toUpperCase())
             )
-          )
-        )
+          ),
+        ])
       );
 
       setGeneSet(genes);
     }
-  }, [networkBiologyData]); // Add dependency array to trigger effect when networkBiologyData changes
-  
+  }, [networkBiologyData, target]); // Added target to dependency array
 
   // Filter disease data based on selected target
   useEffect(() => {
@@ -170,21 +177,27 @@ const DiseasePathways: React.FC<NetworkBiologyProps> = ({ indications,target }) 
         interconnections.
       </p>
 
-      {indications.length > 0 && geneSet.length>0 &&(
+      {indications.length > 0 && (
         <div className="my-3">
           <span className="mt-4">Filter by gene: </span>
           <Select
             style={{ width: 300 }}
             showSearch
             placeholder="Select a gene"
+            value={selectedTarget} // Add this to show the selected value
             onChange={handleTargetChange}
             allowClear
-           options= {geneSet.map((gene) => (
-              {label: gene, value: gene}
-            )).sort((a, b) => a.label.localeCompare(b.label))}/>
+            options={geneSet
+              .map((gene) => ({
+                label: gene,
+                value: gene,
+              }))
+              .sort((a, b) => a.label.localeCompare(b.label))}
+          />
         </div>
       )}
-      {summary && filteredData.length>0&&(
+      
+      {summary && filteredData.length > 0 && (
         <div className="my-5">
           <span className="font-bold">Summary: </span>
           <span className="text-lg">{summary}</span>
@@ -220,7 +233,7 @@ const DiseasePathways: React.FC<NetworkBiologyProps> = ({ indications,target }) 
           </Collapse>
         ) : (
           <div className="h-[70vh] flex justify-center items-center">
-            <Empty description="No data available" />
+            <Empty description={`No data available for ${target}`} />
           </div>
         )}
       </div>
