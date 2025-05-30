@@ -1,9 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react';
 import { Search, Loader2, CheckCircle } from 'lucide-react';
 import { useQuery } from 'react-query';
 import { capitalizeFirstLetter } from '../../utils/helper';
 import { Pagination } from 'antd'; // Import Ant Design Pagination
-
 
 const fetchData = async () => {
   const response = await fetch(`${import.meta.env.VITE_API_URI}/dossier/dashboard/`);
@@ -60,6 +59,7 @@ const Notification = () => {
   
   const dahsboardData = useMemo(() => {
     if (data) {
+      console.log("Dashboard Data:", combineCategoriesWithStatus(data));
       return combineCategoriesWithStatus(data);
     }
     return [];
@@ -67,8 +67,10 @@ const Notification = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   
+  // Filter based on both disease and target
   const filteredDiseases = dahsboardData.filter(diseases =>
-    diseases?.disease.toLowerCase().includes(searchQuery.toLowerCase())
+    (diseases?.disease.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    diseases?.target?.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const processingDiseases = filteredDiseases.filter(disease => disease.status === 'processing' || disease.status === 'submitted');
@@ -95,6 +97,22 @@ const Notification = () => {
   // Paginate the ready diseases
   const paginatedReadyDiseases = readyDiseases.slice((readyPage - 1) * pageSize, readyPage * pageSize);
 
+  // Render Disease / Target Pairing
+  const renderDiseaseTarget = (disease, target) => {
+    if (target && disease) {
+      if(disease==="no-disease")
+      {
+        return `${capitalizeFirstLetter(target)}`;
+      }
+      return `${capitalizeFirstLetter(target)} - ${capitalizeFirstLetter(disease)}`;
+    } else if (target) {
+      return `${target?.toUpperCase()}`;
+    } else if (disease) {
+      return `${capitalizeFirstLetter(disease)}`;
+    }
+    return null;
+  };
+
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[86vh]">
       <div className="mb-6">
@@ -105,7 +123,7 @@ const Notification = () => {
           <input
             type="text"
             className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            placeholder="Search diseases"
+            placeholder="Search diseases or targets"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -117,7 +135,7 @@ const Notification = () => {
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="px-4 py-5 sm:px-6 bg-amber-50 border-b border-amber-100">
             <div className="flex items-center">
-              <Loader2 className={`h-5 w-5 text-amber-500 mr-2 ${processingDiseases.length!==0 && "animate-spin"} `} />
+              <Loader2 className={`h-5 w-5 text-amber-500 mr-2 ${processingDiseases.length !== 0 && "animate-spin"} `} />
               <h3 className="text-lg leading-6 font-medium text-gray-900">
                 In Progress ({processingDiseases.length})
               </h3>
@@ -131,7 +149,7 @@ const Notification = () => {
               paginatedProcessingDiseases.map((disease) => (
                 <div key={disease.id} className="px-4 py-4 sm:px-6 hover:bg-gray-50">
                   <div className="flex items-center justify-between">
-                    <p className="text-base font-medium truncate">{capitalizeFirstLetter(disease.disease)}</p>
+                    <p className="text-base font-medium truncate">{renderDiseaseTarget(disease.disease, disease.target)}</p>
                     <div className="ml-2 flex-shrink-0 flex">
                       <p className="px-2 inline-flex text-sm leading-5 font-semibold rounded-full bg-amber-100 text-amber-800">
                         In Progress
@@ -154,7 +172,7 @@ const Notification = () => {
               </div>
             )}
           </div>
-         { paginatedProcessingDiseases.length > 0 && <Pagination
+          {paginatedProcessingDiseases.length > 0 && <Pagination
             current={processingPage}
             pageSize={pageSize}
             total={processingDiseases.length}
@@ -181,7 +199,7 @@ const Notification = () => {
               paginatedReadyDiseases.map((disease) => (
                 <div key={disease.id} className="px-4 py-4 sm:px-6 hover:bg-gray-50">
                   <div className="flex items-center justify-between">
-                    <p className="text-base font-medium truncate">{capitalizeFirstLetter(disease.disease)}</p>
+                    <p className="text-base font-medium truncate">{renderDiseaseTarget(disease.disease, disease.target)}</p>
                     <div className="ml-2 flex-shrink-0 flex">
                       <p className="px-2 inline-flex text-sm leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                         Ready
@@ -198,6 +216,11 @@ const Notification = () => {
                         Completed in {calculateProcessingTime(disease?.submission_time, disease?.processed_time)}
                       </p>
                     </div>
+                    {/* {disease.target && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-gray-600">Target: {capitalizeFirstLetter(disease.target)}</p>
+                      </div>
+                    )} */}
                   </div>
                 </div>
               ))
