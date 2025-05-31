@@ -1101,16 +1101,16 @@ async def get_target_pipeline_all(
         pmid_map = get_disease_pmid_nct_mapping([d.replace("_", " ") for d in diseases])
         all_entries = get_pmids_for_nct_ids_target_pipeline(all_entries, pmid_map)
         all_entries = add_outcome_status_target_pipeline(all_entries)
-        print("all entries in pipeline: ", all_entries)
+        # print("all entries in pipeline: ", all_entries)
         # Deduplicate entries
         all_entries = remove_duplicates(all_entries)
-        print("all_entries after duplicates: ", all_entries)
+        # print("all_entries after duplicates: ", all_entries)
         # Build available diseases
         available = sorted({
             e["Disease"].strip().replace("_", " ").lower()
             for e in all_entries if e.get("Disease")
         })
-        print("available: ", available)
+        # print("available: ", available)
         # Combine cached and fresh data
         all_entries.extend(cached_data)
         all_entries = remove_duplicates(all_entries)

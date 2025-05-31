@@ -302,7 +302,7 @@ def filter_indication_records_by_synonyms(
     for disease, records in disease_records.items():
         # Get the list of exact synonyms for the disease and normalize to lowercase
         synonyms: List[str] = [syn.lower() for syn in disease_synonyms.get(disease, [])]
-        # print(disease)
+        
         filtered_records[disease] = []
         for record in records:
             if not isinstance(record, dict):  # Handle non-dictionary entries
@@ -1091,10 +1091,8 @@ def add_outcome_status_target_pipeline(records: List[Dict[str, Any]]) -> List[Di
     try:
         # Check the OPENAI access
         openai_health_check()
-        print("in outcome pipeline", records)
         # Iterate over all records
         for entry in records:
-            print("here")
             if entry["Status"] == "Terminated" or entry["Status"] == "Withdrawn" or entry["Status"]=="Suspended":
                 entry["OutcomeStatus"] = "Failed"
             else:
@@ -1108,7 +1106,6 @@ def add_outcome_status_target_pipeline(records: List[Dict[str, Any]]) -> List[Di
                     else:
                         entry["OutcomeStatus"] = get_outcome_status_openai(pubmed_ids, entry.get("Disease", "").lower())
                     time.sleep(1)
-        print("after outcome pipeline", records)
 
     except HTTPException as e:
         print("exception raised here")
@@ -1370,7 +1367,6 @@ def remove_duplicates(pipeline):
 
             # Keep only the latest occurrence
             seen[unique_key] = entry
-    print("in remove duplicates")
     # Return the filtered list
     return list(seen.values())
 

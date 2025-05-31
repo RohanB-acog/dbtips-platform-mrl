@@ -822,9 +822,15 @@ def fetch_literature_details_with_abstracts(disease_name: str,pmids: List[str]) 
             year_text = pub_year.text if pub_year is not None else ""
             
             citedby_count = get_cited_by_count(pmid_text)
-            
-            journal_name = article.find(".//Journal").find('.//Title').text if article.find(".//Journal") else None
-            journal_issn = article.find(".//Journal").find('.//ISSN').text if article.find(".//Journal") else None
+            journal_elem = article.find(".//Journal")
+            title_elem = journal_elem.find('.//Title') if journal_elem is not None else None
+            journal_name = title_elem.text if title_elem is not None else None
+
+            issn_elem = journal_elem.find('.//ISSN') if journal_elem is not None else None
+            journal_issn = issn_elem.text if issn_elem is not None else None
+
+            # journal_name = article.find(".//Journal").find('.//Title').text if article.find(".//Journal") else None
+            # journal_issn = article.find(".//Journal").find('.//ISSN').text if article.find(".//Journal") else None
             if journal_issn:
                 journal_issn = journal_issn.replace('-','')
                 journal_rank = get_journal_rank(journal_issn)
