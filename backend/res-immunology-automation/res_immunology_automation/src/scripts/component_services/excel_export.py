@@ -403,32 +403,37 @@ def process_patent_data(data: List[Dict[str, Any]]) -> str:
 
     # Process data and write to rows
     current_row = 2
-    for entry in data["results"]:
-        target = entry["target"]
-        disease = entry["disease"]
+    for disease, disease_data in data.items():
+        results = disease_data.get("results", [])
 
-        if not entry["results"]:  # Handle diseases with no results
+        if not results:  # If no results, write just the disease name
             ws.cell(row=current_row, column=1, value=disease).alignment = alignment
             current_row += 1
             continue
-        else:
-            for result in entry["results"]:
-                base_row = current_row
-                country_status = result.get("country_status", {})
-                for country, status in country_status.items():
-                    ws.cell(row=current_row, column=1, value=disease).alignment = alignment
-                    ws.cell(row=current_row, column=2).hyperlink = result["pdf"]
-                    ws.cell(row=current_row, column=2, value=result["title"]).alignment = alignment
-                    ws.cell(row=current_row, column=2).style = "Hyperlink"
-                    ws.cell(row=current_row, column=3, value=result["assignee"]).alignment = alignment
-                    ws.cell(row=current_row, column=4, value=result["filing_date"]).alignment = alignment
-                    ws.cell(row=current_row, column=5, value=result["grant_date"]).alignment = alignment
-                    ws.cell(row=current_row, column=6, value=result["expiry_date"]).alignment = alignment
 
-                    # Write each country status in a new row
-                    ws.cell(row=current_row, column=7, value=country).alignment = alignment
-                    ws.cell(row=current_row, column=8, value=status).alignment = alignment
-                    current_row += 1  # Move to the next row for country status
+        for result in results:
+            base_row = current_row
+            country_status = result.get("country_status", {})
+
+            for country, status in country_status.items():
+                # Write core patent info (same for each country row)
+                ws.cell(row=current_row, column=1, value=disease).alignment = alignment
+
+                ws.cell(row=current_row, column=2).hyperlink = result.get("pdf", "")
+                ws.cell(row=current_row, column=2, value=result.get("title", "")).alignment = alignment
+                ws.cell(row=current_row, column=2).style = "Hyperlink"
+
+                ws.cell(row=current_row, column=3, value=result.get("assignee", "")).alignment = alignment
+                ws.cell(row=current_row, column=4, value=result.get("filing_date", "")).alignment = alignment
+                ws.cell(row=current_row, column=5, value=result.get("grant_date", "")).alignment = alignment
+                ws.cell(row=current_row, column=6, value=result.get("expiry_date", "")).alignment = alignment
+
+                # Country-specific status
+                ws.cell(row=current_row, column=7, value=country).alignment = alignment
+                ws.cell(row=current_row, column=8, value=status).alignment = alignment
+
+                current_row += 1  # Move to the next row for the next country status
+
 
     try:
         workbook.save(output_path)
@@ -802,7 +807,7 @@ def process_gtr_excel(data):
             testname = study["testname"]
             offerer = study["offerer"]
             location = study["location"]
-            analytes = ", ".join(study["analytes"]["Gene"])  # Joining gene list into a single string
+            analytes = ", ".join(study["analytes"].get("Gene", [])) if "analytes" in study else ""
             methods = ", ".join(study["methods"])
             targetpopulation = study["targetpopulation"]
             row_data = [
@@ -953,7 +958,7 @@ def process_kol_excel(data):
 
 def process_literature_excel(data,selectedLiteratureData):
     # Load workbook and disable template mode
-    template_path = "./Literature_template-v1.0.xltx"
+    template_path = "../excel_export_templates/Literature_template-v1.0.xltx"
     output_path = "./LiteratureLatest.xlsx"
     workbook = load_workbook(template_path)
     workbook.template = False
@@ -1007,6 +1012,46 @@ def process_literature_excel(data,selectedLiteratureData):
 
             row += 1  # Move to the next row after filling
 
+    try:
+        workbook.save(output_path)
+        return output_path
+    except Exception as e:
+        raise Exception(f"Error: Failed to save the file. {e}")
+
+def process_target_literature_excel(data):
+    # Load workbook and disable template mode
+    template_path = "../excel_export_templates/Literature_template-v1.0.xltx"
+    output_path = "./LiteratureLatest.xlsx"
+    workbook = load_workbook(template_path)
+    workbook.template = False
+    ws = workbook["Review_repository"]
+    # selectedLiteratureWorkbook = workbook["Select_reviews"]
+    for row in ws.iter_rows(min_row=2):  # Keep the first row (headers)
+        for cell in row:
+            cell.value = None
+    row=2
+    for disease, disease_data in data.items():
+        for study in disease_data["literature"]: 
+            disease = "" if disease.lower() == "no-disease" else disease
+            year = study["Year"]
+            citedBy = study["citedby"]
+            category = ", ".join(study["Qualifers"])  # Joining gene list into a single string
+            author = ", ".join(study["authors"])
+            title = study["Title"]
+            pubmedLink = study["PubMedLink"]
+            row_data = [
+                disease, year,category,title,author,citedBy
+            ]
+            for col, value in enumerate(row_data, start=1):
+                ws.cell(row=row, column=col, value=value)
+
+            ws.cell(row=row, column=4, value=title)
+
+            ws.cell(row=row, column=4).hyperlink = pubmedLink
+            ws.cell(row=row, column=4).style = "Hyperlink"
+
+            row += 1  # Move to the next row after filling
+   
     try:
         workbook.save(output_path)
         return output_path
