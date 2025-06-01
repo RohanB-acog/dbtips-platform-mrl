@@ -11,7 +11,7 @@ from api import get_evidence_literature_semaphore, get_mouse_studies, \
                 get_anatomy, get_protein_structure, get_target_mouse_studies, \
                 get_targetability, get_gene_essentiality_map, get_tractability, \
                 get_paralogs, get_target_pipeline_all_semaphore, get_evidence_target_literature, \
-                search_patents
+                search_patents, get_complete_indication_pipeline
                 
 import logging
 import time
@@ -273,6 +273,7 @@ async def run_endpoints(job_data):
             get_key_influencers, 
             get_rna_sequence_semaphore,
             get_diseases_profiles_llm,
+            get_complete_indication_pipeline
         ]
 
         disease_only_endpoints = [
@@ -310,7 +311,7 @@ async def run_endpoints(job_data):
                 try:
                     request_data = DiseasesRequest(diseases=unique_diseases)
                     logging.info(f"\t\t\tCalling {endpoint.__name__} with all diseases: {unique_diseases}")
-                    if endpoint.__name__ in ['get_network_biology_semaphore', 'get_indication_pipeline_semaphore']:
+                    if endpoint.__name__ in ['get_network_biology_semaphore', 'get_indication_pipeline_semaphore', 'get_complete_indication_pipeline']:
                         response = await endpoint(request_data, db=db )
                     elif endpoint.__name__ in ["get_top_10_literature", 'get_key_influencers']:
                         response = await endpoint(request_data)
