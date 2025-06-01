@@ -1075,8 +1075,10 @@ def add_outcome_status(records: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Li
     except Exception as e:
         raise e
     
-    records['Validity'] = "invalid" if RATE_LIMIT_OPENAI_FLAG == True else "valid"
-    return records
+    # records['Validity'] = "invalid" if RATE_LIMIT_OPENAI_FLAG == True else "valid"
+    openai_validity = "invalid" if RATE_LIMIT_OPENAI_FLAG == True else "valid"
+
+    return records, openai_validity
 
 def add_outcome_status_target_pipeline(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """

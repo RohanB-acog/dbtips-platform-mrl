@@ -51,7 +51,7 @@ from utils import format_for_cytoscape, get_efo_id, find_disease_id_by_name, sen
     save_big_response_to_file, \
     get_associated_targets,get_mouse_phenotypes,fetch_all_publications,get_exact_synonyms, \
     get_conver_later_strapi,get_target_indication_pairs_strapi,enrich_disease_pathway_results, \
-    add_pipeline_indication_records,fetch_nct_titles
+    add_pipeline_indication_records,fetch_nct_titles, fetch_nct_data
 from dependencies import get_neo4j_driver
 from target_analyzer import TargetAnalyzer
 from db.database import get_db, engine, Base, SessionLocal
@@ -1239,8 +1239,8 @@ async def get_indication_pipeline(request: DiseasesRequest,
         indication_pipeline:Dict[str, List[Dict]] = fetch_and_parse_diseases_known_drugs(diseases_and_efo,disease_exact_synonyms)
         print("fetch_and_parse_diseases_known_drugs\n")
         # adding strapi data
-        for disease_name,values in indication_pipeline.items():
-            values.extend(get_indication_pipeline_strapi(disease_name))
+        # for disease_name,values in indication_pipeline.items():
+        #     values.extend(get_indication_pipeline_strapi(disease_name))
         for disease_name,entries in indication_pipeline.items():
             for entry in entries:
                 entry["NctIdTitleMapping"]=fetch_nct_titles([url.split("/")[-1] for url in entry.get("Source URLs",[])])
@@ -1248,7 +1248,7 @@ async def get_indication_pipeline(request: DiseasesRequest,
                 
         indication_pipeline=get_pmids_for_nct_ids(indication_pipeline)
         print("get_pmids_for_nct_ids\n")
-        indication_pipeline=add_outcome_status(indication_pipeline)
+        indication_pipeline, openai_validity=add_outcome_status(indication_pipeline)
         print("add_outcome_status\n")
         response = {"indication_pipeline": indication_pipeline}
         for disease, value in response["indication_pipeline"].items():
@@ -1280,6 +1280,146 @@ async def get_indication_pipeline(request: DiseasesRequest,
         
         response["indication_pipeline"].update(cached_response_api.get("indication_pipeline", {}))
         response["indication_pipeline"]=remove_duplicates_from_indication_pipeline(response["indication_pipeline"])
+        # response=add_pipeline_indication_records(diseases_and_efo,response)
+        return response
+    
+    except Exception as e:
+        status_code = getattr(e, "status_code", None)
+        if status_code == 429:
+            set_rate_limit(RATE_LIMIT)
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+semaphore = asyncio.Semaphore(1)
+@app.post("/market-intelligence/complete-indication-pipeline-semaphore/", tags=["Market Intelligence"])
+async def  (request: DiseasesRequest,
+                                  db: Session = Depends(get_db)):
+    try:
+        async with semaphore:  # This will block concurrent requests
+            print(f"lock applied and processing {request.diseases}")
+            response =  await get_complete_indication_pipeline(request, db)
+        print("lock removed")
+    except Exception as e:
+        raise e
+    return response    
+
+@app.post("/market-intelligence/complete-indication-pipeline/", tags=["Market Intelligence"])
+async def get_complete_indication_pipeline(request: DiseasesRequest,
+                                  db: Session = Depends(get_db)):
+    diseases = request.diseases
+    diseases: List[str] = [d.strip().lower().replace(" ", "_") for d in request.diseases]
+    diseases_str = "-".join(diseases)
+    key: str = f"/market-intelligence/complete-indication-pipeline:{diseases_str}"
+    endpoint: str = "/market-intelligence/complete-indication-pipeline/"
+    # Directory to store the cached JSON file
+    cache_dir: str = "cached_data_json/disease"
+    os.makedirs(cache_dir, exist_ok=True)  # Ensure the directory exists
+    cached_diseases: Set[str] = set()
+    cached_data: List = []
+    for disease in diseases:
+        disease_record = db.query(Disease).filter_by(id=f"{disease}").first()
+        # 1. Check if the cached JSON file exists
+        if disease_record is not None:
+            cached_file_path: str = disease_record.file_path
+            print(f"Loading cached response from file: {cached_file_path}")
+            cached_responses: Dict = load_response_from_file(cached_file_path)
+
+            # Check if the endpoint response exists in the cached data
+            if f"{endpoint}" in cached_responses:
+                cached_diseases.add(disease)
+                print(f"Returning cached response from file: {cached_file_path}")
+                cached_data.append(cached_responses[f"{endpoint}"]["complete_indication_pipeline"])
+
+    # filtering diseases whose response is not present in the json file
+    filtered_diseases = [disease for disease in diseases if disease not in cached_diseases]
+    print("filtered_diseases: ", filtered_diseases)
+    
+    cached_response_api: Dict = {}
+    for data in cached_data:
+        disease_key, value = list(data.items())[0]
+        if "complete_indication_pipeline" not in cached_response_api:
+            cached_response_api["complete_indication_pipeline"] = {}
+        cached_response_api["complete_indication_pipeline"][disease_key] = value
+    
+    # cached_response_api=add_pipeline_indication_records({disease.replace("_"," ") for disease in cached_diseases},cached_response_api)
+    if len(filtered_diseases) == 0:  # all pairs fo target and disease already present in the json file
+        print("All pair of target and disease already present in cached json files,returning cached response")
+        return cached_response_api
+
+
+    try:
+        if is_rate_limited():
+            remaining_time = int(rate_limited_until - time.time())
+            raise HTTPException(status_code=429, detail=f"Rate limit in effect. Try again after {remaining_time} seconds.")
+    
+        # fetching data from strapi
+        print("Fetching data from strapi")
+        strapi_entries = {}
+        for disease_name in diseases:
+            strapi_entries[disease] = get_indication_pipeline_strapi(disease_name)
+
+        # fetching nct titles for strapi entries
+        print("Fetching NCT titles for strapi entries")
+        for disease_name,entries in strapi_entries.items():
+            for entry in entries:
+                entry["NctIdTitleMapping"]=fetch_nct_titles([url.split("/")[-1] for url in entry.get("Source URLs",[])])
+        
+        # fetch pmids for nct ids in strapi entries using mapping
+        print("Mapping PMIDs for NCT IDs in strapi entries")
+        strapi_entries=get_pmids_for_nct_ids(strapi_entries)
+        
+        #fetch pmids for nct ids in strapi entries using nct data
+        print("Fetching PMIDS from NCT API")
+        for disease_name, entries in strapi_entries.items():
+            for entry in entries:
+                if len(entry.get("PMIDs")) == 0:
+                    nct_data = fetch_nct_data([url.split("/")[-1] for url in entry.get("Source URLs", [])])
+                    pmids = [trial_data["PMIDs"] for trial_data in nct_data if "PMIDs" in trial_data]
+                    entry['PMIDs'].extend(pmids[0])
+        
+        print("OpenAI status")
+        strapi_entries, openai_validity=add_outcome_status(strapi_entries)
+
+        for disease_name, entries in strapi_entries.items():
+            request_data = DiseasesRequest(diseases=[disease_name.replace("_", " ")])
+                # Make the POST request to the internal API endpoint
+            response = client.post("/market-intelligence/indication-pipeline/", json=request_data.dict())
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=response.json())
+            indication_pipeline = response.json()
+            entries.extend(indication_pipeline["indication_pipeline"][disease_name.replace("_", " ")])
+            print("after fetching from indication pipeline: ", )
+
+        response = {"complete_indication_pipeline": strapi_entries}
+        for disease, value in response["complete_indication_pipeline"].items():
+            disease = disease.strip().lower().replace(" ", "_")
+            disease_record = db.query(Disease).filter_by(id=f"{disease}").first()
+            file_path: str = os.path.join(cache_dir, f"{disease}.json")
+
+            # now add the response of each of the disease into lookup table.
+            if disease_record is not None:
+                cached_file_path: str = disease_record.file_path
+                cached_responses = load_response_from_file(cached_file_path)
+            else:
+                cached_responses = {}
+
+            cached_responses[f"{endpoint}"] = {"complete_indication_pipeline": {disease.replace("_", " "): value}}
+
+            if disease_record is None:
+                save_response_to_file(file_path, cached_responses)
+                new_record = Disease(id=f"{disease}",
+                                     file_path=file_path)  # Create a new instance of the identified model
+                db.add(new_record)  # Add the new record to the session
+                db.commit()  # Commit the transaction to save the record to the database
+                db.refresh(new_record)  # Refresh the instance to reflect any changes from the DB (like auto-generated
+                # fields)
+                print(f"Record with ID {disease} added to the target_disease table.")
+            else:
+                save_response_to_file(cached_file_path, cached_responses)
+
+        
+        response["complete_indication_pipeline"].update(cached_response_api.get("complete_indication_pipeline", {}))
+        response["complete_indication_pipeline"]=remove_duplicates_from_indication_pipeline(response["complete_indication_pipeline"])
         # response=add_pipeline_indication_records(diseases_and_efo,response)
         return response
     

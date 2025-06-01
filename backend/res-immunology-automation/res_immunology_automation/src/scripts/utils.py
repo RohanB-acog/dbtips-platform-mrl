@@ -646,6 +646,76 @@ def add_pipeline_indication_records(diseases_and_efo, existing_response: Dict[st
 
     return existing_response
 
+def fetch_nct_data(nct_ids: List[str]) -> List[Dict[str, str]]:
+    """
+    Fetches the official titles for a list of NCT IDs from the clinicaltrials.gov API.
+
+    Args:
+        nct_ids (List[str]): A list of NCT IDs.
+
+    Returns:
+        Dict[str, str]: A dictionary mapping NCT IDs to their official titles.
+    """
+    base_url = "https://clinicaltrials.gov/api/v2/studies"
+    nct_data = []    
+
+    for nct_id in nct_ids:
+        nct_details: Dict[str, str] = {"nctid": nct_id}
+        try:
+            # Construct the API URL for the specific NCT ID
+            url = f"{base_url}/{nct_id}"
+            # Make a GET request to the API
+            response = requests.get(url)
+            # Raise an exception if the response status code is not 200
+            response.raise_for_status()
+            # Parse the JSON response
+            data = response.json()
+            
+            # Extract the official title if it exists
+            nct_details["title"] = data.get("protocolSection", {}).get("identificationModule", {}).get("officialTitle", "")
+
+            nct_details["sponsor"] = data.get("protocolSection", {}).get("identificationModule", {}).get("organization", {}).get("fullName","")
+            
+            status = data.get("protocolSection", {}).get("statusModule", {}).get("overallStatus", "")
+
+            if "unknown" in status.lower():
+                status = data.get("protocolSection", {}).get("statusModule", {}).get("lastKnownStatus", "")
+
+            nct_details["Status"] = status
+            phase = data.get("protocolSection", {}).get("designModule", {}).get("phases", "")
+            if phase :
+                nct_details["phase"] = phase[0]
+
+            interventions = data.get("protocolSection", {}).get("armsInterventionsModule", {}).get("interventions", None)
+            drugs = []
+            if interventions:
+                for intervention in interventions:
+                    if "drug" in intervention["type"].lower():
+                        drugs.append(intervention["name"])
+
+            nct_details["drug"] = drugs
+
+            nct_details["whyStopped"] = data.get("protocolSection", {}).get("statusModule", ).get("whyStopped", "")
+
+            nct_details["Source URLs"] = [f"https://clinicaltrials.gov/ct2/show/{nct_id}"]
+
+            references = data.get("protocolSection", {}).get("referencesModule", {}).get("references", [])
+            nct_details["PMIDs"] = []
+            if references:
+                for ref in references:
+                    if "pmid" in ref:
+                        nct_details["PMIDs"].append(ref.get("pmid"))
+            print(f"PMIDs for {nct_id}: {nct_details['PMIDs']}")
+
+        except Exception as e:
+            # Handle errors (e.g., network issues, invalid NCT ID)
+            print(f"Error fetching title for {nct_id}: {str(e)}")
+            nct_details[nct_id] = ""
+        
+        nct_data.append(nct_details)
+    return nct_data
+
+
 
 def fetch_nct_titles(nct_ids: List[str]) -> Dict[str, str]:
     """
