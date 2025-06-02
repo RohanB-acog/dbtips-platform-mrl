@@ -180,6 +180,10 @@ const Literature = ({ indications }) => {
   }, [selectedLiterature]);
 
   const handleLLMCall = () => {
+    if(processedData.length===0){
+      message.warning("This feature requires context to be passed to LLM. As there is no data available, this feature cannot be used");
+      return;
+    }
     invoke("literature", { send: false });
   };
   return (

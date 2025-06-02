@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery } from "react-query";
-import { Select, Pagination, Empty, Button } from "antd";
+import { Select, Pagination, Empty, Button, message } from "antd";
 import LoadingButton from "../../components/loading";
 import { fetchData } from "../../utils/fetchData";
 import { useLocation } from "react-router-dom";
@@ -224,6 +224,10 @@ const RnaSeqCard = () => {
   }, [filteredData, filters]);
 
   const handleLLMCall = () => {
+    if(dataArray.length===0){
+      message.warning("This feature requires context to be passed to LLM. As there is no data available, this feature cannot be used");
+      return;
+    }
     invoke("rnaseq", { send: false });
   };
 

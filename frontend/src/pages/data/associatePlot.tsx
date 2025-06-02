@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useQuery, useQueries } from "react-query";
-import { Empty, Select, Button, Segmented, ConfigProvider } from "antd";
+import { Empty, Select, Button, Segmented, ConfigProvider, message } from "antd";
 import { fetchData } from "../../utils/fetchData";
 import { capitalizeFirstLetter } from "../../utils/helper";
 import LoadingButton from "../../components/loading";
@@ -381,6 +381,10 @@ const AssociatePlot = ({ indications }) => {
   }, [rowData, selectedDisease, indications, register]);
 
   const handleLLMCall = () => {
+    if(processedData.length===0){
+      message.warning("This feature requires context to be passed to LLM. As there is no data available, this feature cannot be used");
+      return;
+    }
     invoke("gwas", { send: false });
   };
 
