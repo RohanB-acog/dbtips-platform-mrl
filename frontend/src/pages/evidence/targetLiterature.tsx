@@ -8,13 +8,13 @@ import { useQuery } from "react-query";
 import { capitalizeFirstLetter } from "../../utils/helper";
 import { useChatStore } from "chatbot-component";
 import BotIcon from "../../assets/bot.svg?react";
+import Exportbutton from "../../components/exportButton";
 import { preprocessLiteratureData } from "../../utils/llmUtils";
 const { Option } = Select;
 
 function convertToArray(data) {
   const result = [];
   Object.keys(data).forEach((disease) => {
-    console.log("disease inside convert array function", disease);
     data[disease]["literature"].forEach((record) => {
       result.push({
         ...record,
@@ -130,6 +130,10 @@ const Evidence = ({target,indications}) => {
   }, [selectedLiterature]);
 
   const handleLLMCall = () => {
+    if(processedData.length===0){
+      message.warning("This feature requires context to be passed to LLM. As there is no data available, this feature cannot be used");
+      return;
+    }
     invoke("target_literature", { send: false });
   };
 
@@ -169,9 +173,9 @@ const Evidence = ({target,indications}) => {
               <Empty description={String(evidenceLiteratureError)} />
             </div>
           )}
-        {!showLoading && !evidenceLiteratureError && evidenceLiteratureData && indications.length>0 &&(
-          <div className="flex mb-3">
-            <div>
+        {!showLoading && !evidenceLiteratureError && evidenceLiteratureData &&(
+          <div className="flex justify-between mb-3">
+          {  indications.length>0 ?  <div>
               <span className="mt-10 mr-1">Disease: </span>
               <span>
                 <Select
@@ -191,7 +195,14 @@ const Evidence = ({target,indications}) => {
                   ))}
                 </Select>
               </span>
-            </div>
+             
+            </div>:<div></div>}
+            <Exportbutton
+            endpoint="/evidence/target-literature/"
+            fileName="literature_reviews"
+            indications={indications}
+            target={target}
+          />
           </div>
         )}
 
