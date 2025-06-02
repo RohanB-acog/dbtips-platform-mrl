@@ -1,7 +1,7 @@
 import { useQuery } from "react-query";
 import { fetchData } from "../../utils/fetchData";
 import { useEffect, useState, useMemo } from "react";
-import { Empty, Button, Select } from "antd";
+import { Empty, Button, Select,message } from "antd";
 import Patent from "./patent";
 import ExportButton from "../../components/exportButton";
 import he from "he";
@@ -194,6 +194,10 @@ const CompetitiveLandscape = ({target,indications}) => {
   }, [targetData]);
 
   const handleLLMCall = () => {
+    if(processedData.length===0){
+      message.warning("This feature requires context to be passed to LLM. As there is no data available, this feature cannot be used");
+      return;
+    }
     invoke("pipeline_target", { send: false });
   };
   const handleModalityChange = (value) => setSelectedModality(value);
