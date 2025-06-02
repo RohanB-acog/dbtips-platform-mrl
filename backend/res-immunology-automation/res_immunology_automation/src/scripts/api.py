@@ -1292,7 +1292,7 @@ async def get_indication_pipeline(request: DiseasesRequest,
 
 semaphore = asyncio.Semaphore(1)
 @app.post("/market-intelligence/complete-indication-pipeline-semaphore/", tags=["Market Intelligence"])
-async def  (request: DiseasesRequest,
+async def  get_complete_indication_pipeline_semaphore(request: DiseasesRequest,
                                   db: Session = Depends(get_db)):
     try:
         async with semaphore:  # This will block concurrent requests
