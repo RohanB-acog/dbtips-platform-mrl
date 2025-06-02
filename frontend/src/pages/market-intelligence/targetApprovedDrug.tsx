@@ -217,7 +217,7 @@ console.log("filtered", filtered,data);
         This section lists drugs targeting {target} that have been approved by
         regulatory authorities for one or more diseases.
       </p>
-      {approvedDrugData && (
+      {approvedDrugData?.available_disease>0 && (
          <div className="flex justify-between">
          <div>
          <div>
