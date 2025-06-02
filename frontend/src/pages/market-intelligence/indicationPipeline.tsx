@@ -1,7 +1,7 @@
 import { useQuery } from "react-query";
 import { fetchData } from "../../utils/fetchData";
 import { useEffect, useState, useMemo } from "react";
-import { Empty, Select, Button } from "antd";
+import { Empty, Select, Button, message } from "antd";
 import { capitalizeFirstLetter } from "../../utils/helper";
 import parse from "html-react-parser";
 import he from "he";
@@ -218,6 +218,10 @@ const indicationPipeline = ({ indications }) => {
   }, [filteredData]);
 
   const handleLLMCall = () => {
+    if(processedData.length===0){
+      message.warning("This feature requires context to be passed to LLM. As there is no data available, this feature cannot be used");
+      return;
+    }
     invoke("pipeline_indications", { send: false });
   };
   const visibleColumns = useMemo(() => {
