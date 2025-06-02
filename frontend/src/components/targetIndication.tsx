@@ -10,8 +10,13 @@ const TargetIndication = ({ target, indications }) => {
   return (
     <div className="sticky top-[60px] border-t bg-white shadow  py-4 z-50 flex items-center justify-between">
       <div className="flex flex-wrap items-center gap-2 px-[5vw]">
-        <span className="font-semibold text-lg text-gray-800">Target:</span>
+    { target &&    <div>
+
+        <span className="font-semibold text-lg text-gray-800">Target: </span>
         <span className="text-base ">{target}</span>
+        </div>}
+       {indications.length>0 && <>
+
         <span className="font-semibold text-lg text-gray-800">Indications:</span>
         <div className="flex flex-wrap gap-1">
           {indications.map((indication, index) => (
@@ -24,6 +29,7 @@ const TargetIndication = ({ target, indications }) => {
             </span>
           ))}
         </div>
+        </>}
       </div>
     </div>
   );
