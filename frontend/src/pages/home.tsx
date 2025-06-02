@@ -81,7 +81,7 @@ const Home = ({ setAppState }: { setAppState: (prev: any) => any }) => {
   const [targetOptions, setTargetOptions] = useState<GeneSuggestion[]>([]);
   const [confirm, setConfirm] = useState(false);
 
-  const [target, setTarget] = useState<string>("");
+  const [target, setTarget] = useState<string | undefined>(undefined);
   const [indications, setIndications] = useState<TIndication[]>(
     IndicationsDefaultState
   );
@@ -94,18 +94,19 @@ const Home = ({ setAppState }: { setAppState: (prev: any) => any }) => {
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const { target, indications } = parseQueryParams(queryParams);
-
+  
     const parsedIndications = indications
       ? indications.map((indication: string) =>
           capitalizeFirstLetter(indication)
         )
       : [];
+      const uppercaseTarget = target ? target.toUpperCase() : undefined;
 
-    setTarget(target || "");
+    setTarget(uppercaseTarget); // Set to undefined if no target
     setSelectedIndications(parsedIndications);
-
+  
     form.setFieldsValue({
-      target,
+      target: uppercaseTarget, // Set to undefined if no target
       indications: parsedIndications,
     });
   }, [location, form]);
@@ -183,11 +184,14 @@ const Home = ({ setAppState }: { setAppState: (prev: any) => any }) => {
   }, [geneInput]);
 
   const handleIndicationSelect = (value: string) => {
+    // Capitalize the first letter before adding to state
+    const capitalizedValue = capitalizeFirstLetter(value);
+
     setSelectedIndications((prev) => {
-      const isSelected = prev.includes(value);
+      const isSelected = prev.includes(capitalizedValue);
       const updated = isSelected
-        ? prev.filter((item) => item !== value) // Remove if already selected
-        : [...prev, value]; // Add if not selected
+        ? prev.filter((item) => item !== capitalizedValue) // Remove if already selected
+        : [...prev, capitalizedValue]; // Add if not selected (capitalized)
 
       form.setFieldsValue({ indications: updated }); // Sync with the Form & session storage
       sessionStorage.setItem("selectedIndications", JSON.stringify(updated));
@@ -197,14 +201,29 @@ const Home = ({ setAppState }: { setAppState: (prev: any) => any }) => {
   };
 
   const handleTargetSelect = (value: string) => {
-    setTarget(value);
-    form.setFieldsValue({ target: value });
+    const uppercaseTarget = value?.toUpperCase() ||undefined;
 
+    setTarget(uppercaseTarget); // Set to undefined if empty
+    form.setFieldsValue({ target:uppercaseTarget });
+  
     // Reset search state cleanly
     requestIdRef.current++; // Invalidate any pending requests
     setGeneInput(""); // Clear input
     setTargetOptions([]); // Clear options
+    
+    // Force blur the select input to prevent refocus
+    setTimeout(() => {
+      const selectInput = document.querySelector('.ant-select-selector');
+      if (selectInput && selectInput instanceof HTMLElement) {
+        selectInput.blur();
+      }
+      // Alternative: blur any focused element
+      if (document.activeElement && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    }, 0);
   };
+
   const {
     data,
 
@@ -217,39 +236,40 @@ const Home = ({ setAppState }: { setAppState: (prev: any) => any }) => {
     }
   );
   const onFinish: FormProps<FieldType>["onFinish"] = (values) => {
-    
-    setPayload({
-      target: values.target || "",
-      diseases: values.indications,
-    });
-    // setAppState((prev: any) => ({
-    //   ...prev,
-    //   target: values.target,
-    //   indications: values.indications,
-    // }));
+    // Use the selectedIndications state (which is already capitalized) instead of form values
+    const capitalizedIndications =
+      selectedIndications.length > 0
+        ? selectedIndications
+        : (values.indications || []).map((indication) =>
+            capitalizeFirstLetter(indication)
+          );
 
-    // if (values.target)
-    //   navigate(
-    //     `/target-biology?target=${
-    //       values.target
-    //     }&indications=${encodeURIComponent(encodedIndications || "")}`
-    //   );
-    // else
-    //   navigate(
-    //     `/disease-profile?target=${
-    //       values.target
-    //     }&indications=${encodeURIComponent(encodedIndications || "")}`
-    //   );
+    setPayload({
+      target: values.target ? values.target.toUpperCase() : "",
+      diseases: capitalizedIndications, // Use capitalized indications
+    });
   };
+
+  // Also fix the useEffect that sets appState to ensure consistency
+  
+  useEffect(() => {
+    form.setFieldsValue({
+      indications: selectedIndications,
+      target: target,
+    });
+  }, [selectedIndications, target, form]);
+
   useEffect(() => {
     if (data) {
       const cachedItems = data["cached"] || [];
       const buildingItems = data["building"] || [];
       
       if (cachedItems.length > 0) {
-        // Extract cached diseases and target
-        const cachedDiseases = cachedItems.flatMap(item => item.diseases || []);
-        const cachedTarget = cachedItems.find(item => item.target)?.target || null;
+        // Extract cached diseases and target - ensure capitalization
+        const cachedDiseases = cachedItems.flatMap(item => 
+          (item.diseases || []).map(disease => capitalizeFirstLetter(disease))
+        );
+        const cachedTarget = cachedItems.find(item => item.target)?.target?.toUpperCase() || null;
         
         // Build navigation parameters
         const params = new URLSearchParams();
@@ -267,18 +287,17 @@ const Home = ({ setAppState }: { setAppState: (prev: any) => any }) => {
         
         setAppState((prev) => ({
           ...prev,
-          indications: cachedDiseases,
+          indications: cachedDiseases, // Already capitalized
           target: cachedTarget?.toUpperCase() || "",
         }));
         
         // Check if all requested items are cached
         const totalRequestedDiseases = payload?.diseases?.length || 0;
-        const requestedTarget = payload?.target;
+        const requestedTarget = payload?.target?.toUpperCase();
         const totalCachedDiseases = cachedDiseases.length;
         
         const allDiseasesReady = totalRequestedDiseases === 0 || totalCachedDiseases === totalRequestedDiseases;
         const targetReady = !requestedTarget || cachedTarget?.toUpperCase() == requestedTarget?.toUpperCase();
-        
         
         if (allDiseasesReady && targetReady) {
           // Everything is cached, navigate directly
@@ -290,8 +309,10 @@ const Home = ({ setAppState }: { setAppState: (prev: any) => any }) => {
           }
         } else {
           // Some items are still building
-          const buildingDiseases = buildingItems.flatMap(item => item.diseases || []);
-          const buildingTarget = buildingItems.find(item => item.target.to)?.target || null;
+          const buildingDiseases = buildingItems.flatMap(item => 
+            (item.diseases || []).map(disease => capitalizeFirstLetter(disease))
+          );
+          const buildingTarget = buildingItems.find(item => item.target)?.target?.toUpperCase() || null;
           
           // Build description for modal
           let description = "";
@@ -332,8 +353,10 @@ const Home = ({ setAppState }: { setAppState: (prev: any) => any }) => {
           }
         }
       } else {
-        // No cached items available
-        const buildingDiseases = buildingItems.flatMap(item => item.diseases || []);
+        // No cached items available - ensure building items are also capitalized
+        const buildingDiseases = buildingItems.flatMap(item => 
+          (item.diseases || []).map(disease => capitalizeFirstLetter(disease))
+        );
         const buildingTarget = buildingItems.find(item => item.target)?.target || null;
         
         const buildingItemsDesc = [];
@@ -364,47 +387,49 @@ const Home = ({ setAppState }: { setAppState: (prev: any) => any }) => {
 
     return (
       <ul className="max-h-80 overflow-y-auto text-sm">
-        {indications.map((opt) => (
-          <li
-            key={opt.id}
-            title={opt.name}
-            onClick={() => handleIndicationSelect(opt.name)}
-            className={`px-4 py-2 rounded ${
-              selectedIndications.includes(opt.name)
-                ? "bg-[#e6f4ff]"
-                : "hover:bg-gray-100"
-            }`}
-          >
-            <p>{opt.name}</p>
-
-            <div className="mt-1">
-              <Tag
-                color="green"
-                bordered={false}
-                className="cursor-pointer text-xs"
-              >
-                {opt.id}
-              </Tag>
-
-              <Popover
-                zIndex={1100}
-                content={
-                  <p className="max-w-80 text-sm max-h-52 overflow-y-scroll">
-                    {parse(
-                      HighlightText(opt.matched_column.split(":")[1], input)
-                        .HTML
-                    )}
-                  </p>
-                }
-                placement="left"
-              >
-                <Tag className="cursor-pointer text-xs">
-                  {opt.matched_column.split(":")[0]}
+        {indications.map((opt) => {
+          const capitalizedName = capitalizeFirstLetter(opt.name);
+          return (
+            <li
+              key={opt.id}
+              title={capitalizedName}
+              onClick={() => handleIndicationSelect(opt.name)} // Pass original name, function will capitalize
+              className={`px-4 py-2 rounded ${
+                selectedIndications.includes(capitalizedName)
+                  ? "bg-[#e6f4ff]"
+                  : "hover:bg-gray-100"
+              }`}
+            >
+              <p>{capitalizedName}</p> {/* Display capitalized name */}
+              <div className="mt-1">
+                <Tag
+                  color="green"
+                  bordered={false}
+                  className="cursor-pointer text-xs"
+                >
+                  {opt.id}
                 </Tag>
-              </Popover>
-            </div>
-          </li>
-        ))}
+
+                <Popover
+                  zIndex={1100}
+                  content={
+                    <p className="max-w-80 text-sm max-h-52 overflow-y-scroll">
+                      {parse(
+                        HighlightText(opt.matched_column.split(":")[1], input)
+                          .HTML
+                      )}
+                    </p>
+                  }
+                  placement="left"
+                >
+                  <Tag className="cursor-pointer text-xs">
+                    {opt.matched_column.split(":")[0]}
+                  </Tag>
+                </Popover>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     );
   };
@@ -521,10 +546,10 @@ const Home = ({ setAppState }: { setAppState: (prev: any) => any }) => {
                       requestIdRef.current++;
                       setGeneInput(value);
                     }}
-                    value={target?.toUpperCase() }
+                    value={target ? target.toUpperCase() : undefined} // Fix: only set value if target exists
                     onChange={handleTargetSelect}
                     filterOption={false} // Disable default filtering
-                    dropdownRender={dropdownRenderGene}
+                    popupRender={dropdownRenderGene}
                   />
                 </Form.Item>
                 <Form.Item name="indications" label="Indications:">
@@ -539,11 +564,15 @@ const Home = ({ setAppState }: { setAppState: (prev: any) => any }) => {
                     }}
                     value={selectedIndications}
                     onChange={(value) => {
-                      setSelectedIndications(value);
-                      form.setFieldsValue({ indications: value });
+                      // Capitalize all values when they come from direct selection
+                      const capitalizedValues = value.map((v) =>
+                        capitalizeFirstLetter(v)
+                      );
+                      setSelectedIndications(capitalizedValues);
+                      form.setFieldsValue({ indications: capitalizedValues });
                       setInput("");
                     }}
-                    dropdownRender={dropdownRenderIndications}
+                    popupRender={dropdownRenderIndications}
                   />
                 </Form.Item>
               </ConfigProvider>
