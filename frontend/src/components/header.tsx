@@ -28,7 +28,7 @@ const Header = ({ app_state }) => {
       label: "Market Intelligence",
       children: [
         { key: "approvedDrug", label: "Approved drugs" },
-        { key: "pipeline-by-target", label: "Target pipeline" },
+        { key: "pipeline-by-target", label: "Therapeutic pipeline" },
         { key: "patent", label: "Patents" },
       ],
     },
@@ -91,7 +91,7 @@ const Header = ({ app_state }) => {
       label: "Market Intelligence",
       children: [
         { key: "approvedDrug", label: "Approved drugs" },
-        { key: "pipeline-by-indications", label: "Indication pipeline" },
+        { key: "pipeline-by-indications", label: "Therapeutic pipeline" },
         {
           key: "opinionLeaders",
           label: "Opinion leaders",
@@ -235,7 +235,7 @@ const Header = ({ app_state }) => {
       label: "Market Intelligence",
       children: [
         { key: "approvedDrug", label: "Approved drugs" },
-        { key: "pipeline-by-target", label: "Target pipeline" },
+        { key: "pipeline-by-target", label: "Therapeutic pipeline" },
         { key: "patent", label: "Patents" },
       ],
     },
