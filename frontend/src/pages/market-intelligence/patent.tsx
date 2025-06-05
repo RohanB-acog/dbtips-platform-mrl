@@ -126,7 +126,7 @@ useEffect(() => {
       <h1 className="text-3xl font-semibold">Patents</h1>
       <p className=" font-medium mt-2">
         A concise overview of worldwide patents detailing therapeutic
-        innovations related to the {target} {indications.length > 0 && `in ${indications.join(" or ")}`}
+        innovations related to the {target} {indications.length > 0 ?" in different diseases": `in ${indications.join(", ")}`}
       </p>
 
       {patentLoading && <LoadingButton />}

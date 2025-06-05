@@ -153,16 +153,16 @@ const Evidence = ({target,indications}) => {
             </Button>
           </Tooltip>
         </div>
+       { indications.length>0 ?<p className="my-2  font-medium ">
+          This section offers a curated collection of recent research articles
+          highlighting role of {target} in {indications.join(", ")}.
+        </p> : 
         <p className="my-2  font-medium ">
           This section offers a curated collection of recent research articles
-          highlighting the target's role in the disease.
+          highlighting role of {target} in various diseases.
         </p>
-
-        {/* <SelectedLiterature selectedIndication={selectedIndication} indications={indications}/> */}
-        {/* <h2 className='subHeading text-xl mt-10 font-semibold  mb-4'>
-					{' '}
-					Review repository
-				</h2> */}
+       }
+        
 
         {showLoading && <LoadingButton />}
 

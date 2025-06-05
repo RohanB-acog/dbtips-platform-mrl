@@ -170,12 +170,11 @@ const DiseasePathways: React.FC<NetworkBiologyProps> = ({ indications, target })
       className="px-[5vw] py-20 bg-gray-50 mt-12"
     >
       <h1 className="text-3xl font-semibold">Disease pathways</h1>
-      <p className="mt-2">
-        This section offers insights into pathways relevant to disease
-        pathophysiology and enables users to search disease-related pathways by
-        genes across one or multiple diseases and visualize their
-        interconnections.
-      </p>
+      {target?<p className="mt-2">
+        This section offers insights into pathways relevant to pathophysiology of  and enables users to search disease-related pathways by {target} and/or other genes across one or multiple diseases and visualize their interconnections
+      </p>:<p className="mt-2">
+      This section offers insights into pathways relevant to  pathophysiology of {indications.join(", ")} and enables users to search disease-related pathways by genes across one or multiple diseases and visualize their interconnections.
+      </p>}
 
       {indications.length > 0 && (
         <div className="my-3">

@@ -196,7 +196,7 @@ const ApprovedDrug = ({
     <section id="approvedDrug" className="px-[5vw]">
       <h1 className="text-3xl font-semibold mb-4">Approved Drugs</h1>
       <p className="mt-2 font-medium mb-2">
-        List of approved drugs for all the indications
+        List of approved drugs for {indications.join(", ")}.
       </p>
       <div className="flex justify-between">
         <div>

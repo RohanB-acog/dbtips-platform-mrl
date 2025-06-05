@@ -213,10 +213,15 @@ console.log("filtered", filtered,data);
   return (
     <section id="approvedDrug" className="px-[5vw]">
       <h1 className="text-3xl font-semibold mb-4">Approved drugs</h1>
+     { indications.length>0?
+     <p className="mt-2 font-medium mb-2">
+This section lists drugs targeting {target} that have been approved by
+regulatory authorities for {indications.join(", ")} and/or other diseases.
+     </p>:
       <p className="mt-2 font-medium mb-2">
         This section lists drugs targeting {target} that have been approved by
         regulatory authorities for one or more diseases.
-      </p>
+      </p>}
       {approvedDrugData?.available_disease>0 && (
          <div className="flex justify-between">
          <div>

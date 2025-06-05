@@ -190,7 +190,7 @@ const Literature = ({ indications }) => {
     <section id="literature-evidence" className="px-[5vw]">
       <h1 className="text-3xl font-semibold">Literature reviews</h1>
       <p className="my-2  font-medium ">
-        This section provides a recent collection of disease research reviews
+        This section provides a recent collection of research reviews
         for understanding the pathophysiology and therapeutic landscape of the
         disease.
       </p>

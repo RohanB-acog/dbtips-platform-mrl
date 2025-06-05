@@ -241,7 +241,7 @@ const CompetitiveLandscape = ({target,indications}) => {
       </section>
       <section id="pipeline-by-target" className="px-[5vw]">
         <div className="flex space-x-5 items-center">
-          <h1 className="text-3xl font-semibold">Target pipeline </h1>
+          <h1 className="text-3xl font-semibold">Therapeutic pipeline: </h1>
           <Button
             type="default" // This will give it a simple outline
             onClick={handleLLMCall}
@@ -252,16 +252,9 @@ const CompetitiveLandscape = ({target,indications}) => {
           </Button>
         </div>
         <p className="mt-2  font-medium">
-          Clinical precedence for drugs with investigational or approved
-          indications targeting {target} according to their curated mechanism of
-          action.
+        The table offers a comprehensive overview of drug candidates, categorized by indication, development status, and mechanism of action, based on data from ongoing and completed clinical trials. It supports scientists in validating drug targets across modalities and indications.
         </p>
-        <p>
-          * The failed entries for the targets include trials that were
-          withdrawn or terminated due to unmet endpoints, financial constraints,
-          or other factors. For detailed explanations, please refer to the
-          respective trial ID from the "Target pipeline" table.
-        </p>
+      
         {targetError && (
           // Error div with same height as AgGrid
           <div className="ag-theme-quartz mt-4 h-[80vh] max-h-[280px] flex items-center justify-center">
@@ -340,6 +333,15 @@ const CompetitiveLandscape = ({target,indications}) => {
                   rowData={filteredData}
                  
                 />
+                {
+                  filteredData.length>0&&
+                  <p>
+                  * The failed entries for the targets include trials that were
+                  withdrawn or terminated due to unmet endpoints, financial constraints,
+                  or other factors. For detailed explanations, please refer to the
+                  respective trial ID from the "Target pipeline" table.
+                </p>
+                }
               </div>
             </div>
           )}
