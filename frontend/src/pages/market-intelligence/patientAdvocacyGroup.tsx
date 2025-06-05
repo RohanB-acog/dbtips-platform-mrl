@@ -66,6 +66,7 @@ const PatientAdvocacyGroup = ({ indications }) => {
   return (
     <div className="px-[5vw] py-10" id="patientAdvocacyGroup">
       <h1 className="text-3xl font-semibold my-3">Patient advocacy groups</h1>
+      <p className="my-1 font-medium">Profiles of patient advocacy organisations engaged in disease awareness, patient support and healthcare policy advocacy.</p>
       <DataTableWrapper
         isLoading={isLoading}
         error={error}
