@@ -323,7 +323,7 @@ const CompetitiveLandscape = ({target,indications}) => {
                     target={target}
                     disabled={targetDataLoading || processedData.length === 0}
                     fileName={"Target-Pipeline"}
-                    endpoint={"/market-intelligence/target-pipeline/"}
+                    endpoint={"/market-intelligence/target-pipeline-all/"}
                   />
                 </div>
               </div>}
