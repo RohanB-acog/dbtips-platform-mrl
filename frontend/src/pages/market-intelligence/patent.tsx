@@ -122,7 +122,7 @@ useEffect(() => {
 		}
 	  };
   return (
-    <section id="patent" className="px-[5vw] py-20  mt-12">
+    <section id="patent" className="px-[5vw] py-20 bg-gray-50 mt-12">
       <h1 className="text-3xl font-semibold">Patents</h1>
       <p className=" font-medium mt-2">
         A concise overview of worldwide patents detailing therapeutic
