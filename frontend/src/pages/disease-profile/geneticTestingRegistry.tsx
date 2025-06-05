@@ -245,6 +245,7 @@ const GeneticTestingRegistry = ({ indications, target }) => {
                 indications={indications}
                 endpoint="/disease-profile/genetic_testing_registery/"
                 fileName="GeneticTestingRegistry"
+                disabled={processedData.length === 0 || geneticTestingIsLoading}
               />
             </div>
           </div>
