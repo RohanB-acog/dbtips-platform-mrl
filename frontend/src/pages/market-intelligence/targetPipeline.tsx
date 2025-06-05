@@ -339,7 +339,7 @@ const CompetitiveLandscape = ({target,indications}) => {
                   * The failed entries for the targets include trials that were
                   withdrawn or terminated due to unmet endpoints, financial constraints,
                   or other factors. For detailed explanations, please refer to the
-                  respective trial ID from the "Target pipeline" table.
+                  respective trial ID from the "Therapeutic pipeline" table.
                 </p>
                 }
               </div>
