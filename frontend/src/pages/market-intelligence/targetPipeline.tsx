@@ -241,7 +241,7 @@ const CompetitiveLandscape = ({target,indications}) => {
       </section>
       <section id="pipeline-by-target" className="px-[5vw]">
         <div className="flex space-x-5 items-center">
-          <h1 className="text-3xl font-semibold">Therapeutic pipeline: </h1>
+          <h1 className="text-3xl font-semibold">Therapeutic pipeline </h1>
           <Button
             type="default" // This will give it a simple outline
             onClick={handleLLMCall}

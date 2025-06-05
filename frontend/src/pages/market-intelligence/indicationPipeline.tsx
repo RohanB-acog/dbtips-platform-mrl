@@ -243,7 +243,7 @@ const indicationPipeline = ({ indications }) => {
         id="pipeline-by-indications"
         className="bg-gray-50 py-20 px-[5vw]"
       >
-        <h1 className="text-3xl font-semibold ">Therapeutic pipeline:</h1>
+        <h1 className="text-3xl font-semibold ">Therapeutic pipeline </h1>
         <p className="mt-2 mb-2 font-medium">
           The table offers a comprehensive overview of drug candidates,
           categorized by indication, development status, and mechanism of
