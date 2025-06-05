@@ -4,7 +4,7 @@ FROM node:20.11.1-alpine as build
 # Set the working directory
 WORKDIR /app
 
-COPY chatbot-component-1.0.2.tgz ./
+COPY chatbot-component-1.0.3.tgz ./
 
 # Copy the package.json and package-lock.json files to the working directory
 COPY package*.json ./
