@@ -319,7 +319,7 @@ const CompetitiveLandscape = ({target,indications}) => {
                     onChange={handleColumnChange}
                   />}
                   <ExportButton
-                    indications={indications}
+                    indications={[""]}
                     target={target}
                     disabled={targetDataLoading || processedData.length === 0}
                     fileName={"Target-Pipeline"}
