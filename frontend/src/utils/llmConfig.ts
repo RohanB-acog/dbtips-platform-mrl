@@ -30,5 +30,10 @@ export const config = {
 			label: 'Pipeline (by Target)',
 			description_prompt: '{$data}',
 		},
+		{
+			id:"gwas",
+			label:"GWAS Studies",
+			description_prompt: '{$data}',
+		}
 	],
 };
