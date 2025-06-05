@@ -222,7 +222,7 @@ regulatory authorities for {indications.join(", ")} and/or other diseases.
         This section lists drugs targeting {target} that have been approved by
         regulatory authorities for one or more diseases.
       </p>}
-      {approvedDrugData?.available_disease>0 && (
+      {approvedDrugData?.available_diseases?.length>0 && (
          <div className="flex justify-between">
          <div>
          <div>
@@ -234,6 +234,7 @@ regulatory authorities for {indications.join(", ")} and/or other diseases.
                       mode="multiple"
                       maxTagCount="responsive"
                       allowClear={true}
+                      showSearch
                       placeholder="Select diseases"
                       // disabled={isLoading}
                     >
