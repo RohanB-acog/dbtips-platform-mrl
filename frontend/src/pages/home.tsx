@@ -13,7 +13,7 @@ import {
 } from "antd";
 import type { FormProps } from "antd";
 import { capitalizeFirstLetter } from "../utils/helper";
-import gifImage from "../assets/Merged-dossier (1).png";
+import gifImage from "../assets/Merged-dossier (4).png";
 import { parseQueryParams } from "../utils/parseUrlParams";
 import { fetchData } from "../utils/fetchData";
 import { useQuery } from "react-query";
