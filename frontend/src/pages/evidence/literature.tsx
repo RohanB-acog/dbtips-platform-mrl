@@ -5,7 +5,7 @@ import LoadingButton from "../../components/loading";
 import parse from "html-react-parser";
 import { fetchData } from "../../utils/fetchData";
 import { useQuery } from "react-query";
-import SelectedLiterature from "./selectedLiterature";
+// import SelectedLiterature from "./selectedLiterature";
 import { useChatStore } from "chatbot-component";
 import BotIcon from "../../assets/bot.svg?react";
 import { preprocessLiteratureData } from "../../utils/llmUtils";
@@ -180,37 +180,15 @@ const Literature = ({ indications }) => {
   }, [selectedLiterature]);
 
   const handleLLMCall = () => {
-    if(processedData.length===0){
-      message.warning("This feature requires context to be passed to LLM. As there is no data available, this feature cannot be used");
-      return;
-    }
     invoke("literature", { send: false });
   };
   return (
     <section id="literature-evidence" className="px-[5vw]">
-      <h1 className="text-3xl font-semibold">Literature reviews</h1>
-      <p className="my-2  font-medium ">
-        This section provides a recent collection of research reviews
-        for understanding the pathophysiology and therapeutic landscape of the
-        disease.
-      </p>
-      <DiseaseFilter
-        allDiseases={indications}
-        selectedDiseases={selectedIndication}
-        onChange={setSelectedIndication}
-        disabled={showLoading}
-        width={500}
-      />
-
-      <SelectedLiterature
-        selectedIndication={selectedIndication}
-        indications={indications}
-      />
-      <div className="flex justify-between  mt-10 mb-3">
-        <div className="flex items-center space-x-5  ">
-          <h2 className="subHeading text-xl font-semibold">
-            Review repository
-          </h2>
+      {/* <h1 className="text-3xl font-semibold">Literature reviews</h1> */}
+      <div className="flex items-center space-x-5  ">
+          <h1 className="text-3xl font-semibold">
+          Literature reviews
+          </h1>
           <Tooltip title="Please select articles to ask LLM">
             <Button
               type="default" // This will give it a simple outline
@@ -221,6 +199,31 @@ const Literature = ({ indications }) => {
               <span>Ask LLM</span>
             </Button>
           </Tooltip>
+        </div>
+      <p className="my-2  font-medium ">
+        This section provides a recent collection of disease research reviews
+        for understanding the pathophysiology and therapeutic landscape of the
+        disease.
+      </p>
+      
+      <DiseaseFilter
+        allDiseases={indications}
+        selectedDiseases={selectedIndication}
+        onChange={setSelectedIndication}
+        disabled={showLoading}
+        width={500}
+      />
+
+      {/* <SelectedLiterature
+        selectedIndication={selectedIndication}
+        indications={indications}
+      /> */}
+      <div className="flex justify-between  mt-4 mb-3">
+        <div className="flex items-center space-x-5  ">
+          <h2 className="subHeading text-xl font-semibold">
+            Review repository
+          </h2>
+        
         </div>
         <div className="flex gap-2">
           <ColumnSelector
