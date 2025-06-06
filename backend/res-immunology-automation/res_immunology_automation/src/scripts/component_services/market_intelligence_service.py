@@ -12,6 +12,9 @@ from requests.auth import HTTPBasicAuth
 from openai import OpenAI
 from openai._exceptions import OpenAIError, RateLimitError
 from .pubmed_utils import get_data_from_pubmed
+PATIENT_STORIES_URL = os.getenv('PATIENT_STORIES_URL')
+username = os.getenv('username')
+password = os.getenv('password')
 
 super_parent_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if super_parent_path not in sys.path:
@@ -1537,3 +1540,17 @@ def get_target_pipeline_strapi_all(diseases: List[str], target: str) -> List[Dic
             })
 
     return filtered_data
+def fetch_patient_stories_from_source(disease: str):
+    """
+    Fetch Patient Stories from internally hosted service
+    """
+    headers = {"Content-Type": "application/json"}
+    
+    params = {"search_name": disease}
+    url = f"{PATIENT_STORIES_URL}/fetch_patient_stories"
+    response = requests.post(url, params=params, headers=headers, auth=HTTPBasicAuth(username, password))
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return []

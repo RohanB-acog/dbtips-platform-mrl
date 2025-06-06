@@ -63,7 +63,8 @@ from component_services.market_intelligence_service import extract_nct_ids, fetc
     get_pmids_for_nct_ids_target_pipeline,add_outcome_status_target_pipeline, \
     remove_duplicates,remove_duplicates_from_indication_pipeline,get_outcome_status_openai, \
     fetch_drug_warning_data, resolve_chembl_id_from_name, get_patient_advocacy_group_by_disease, \
-    get_target_pipeline_strapi_all
+    get_target_pipeline_strapi_all,fetch_patient_stories_from_source
+
     # get_target_pipeline_strapi
 from component_services.evidence_services import build_query, get_geo_data_for_diseases,fetch_mouse_models,\
     fetch_and_filter_figures_by_disease_and_pmids,fetch_mouse_model_data_alliancegenome,\
@@ -3908,3 +3909,85 @@ def cache_data():
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, workers=1)
+
+@app.post("/market-intelligence/patient-stories/", tags=["Market Intelligence"])
+async def get_patient_stories(request: DiseasesRequest, redis: Redis = Depends(get_redis),
+                  db: Session = Depends(get_db)):
+    diseases: List[str] = request.diseases
+    diseases = [s.strip().lower().replace(' ', '_') for s in diseases]
+    diseases_str = "-".join(diseases)
+
+    # Generate a cache key for the request using target and disease list
+    key: str = f"/market-intelligence/patient-stories/:{diseases_str}"
+    endpoint: str = "/market-intelligence/patient-stories/"
+
+    # Directory to store the cached JSON file
+    cache_dir: str = "cached_data_json/disease"
+    os.makedirs(cache_dir, exist_ok=True)  # Ensure the directory exists
+
+    cached_diseases: Set[str] = set()
+    cached_data: Dict = {}
+    for disease in diseases:
+        disease_record = db.query(Disease).filter_by(id=f"{disease}").first()
+        # 1. Check if the cached JSON file exists
+        if disease_record is not None:
+            cached_file_path: str = disease_record.file_path
+            print(f"Loading cached response from file: {cached_file_path}")
+            cached_responses: Dict = load_response_from_file(cached_file_path)
+
+            # Check if the endpoint response exists in the cached data
+            if f"{endpoint}" in cached_responses:
+                cached_diseases.add(disease)
+                print(f"Returning cached response from file: {cached_file_path}")
+                cached_data[disease.replace("_", " ")] = cached_responses[f"{endpoint}"][disease.replace("_", " ")]
+
+    # filtering diseases whose response is not present in the json file
+    filtered_diseases = [disease for disease in diseases if disease not in cached_diseases]
+
+    if len(filtered_diseases) == 0:  # all disease already present in the json file
+        print("All diseases already present in cached json files,returning cached response")
+        await set_cached_response(redis, key, cached_data)
+        return cached_data
+
+    print("filtered diseases: ", filtered_diseases)
+    # Check if cached response exists in Redis
+    cached_response_redis: dict = await get_cached_response(redis, key)
+    if cached_response_redis:
+        print("Returning chached response")
+        return cached_response_redis
+
+
+    try:
+
+        for disease in filtered_diseases:
+            disease: str = disease.strip().lower().replace(" ", "_")
+            disease_record = db.query(Disease).filter_by(id=f"{disease}").first()
+            file_path: str = os.path.join(cache_dir, f"{disease}.json")
+
+            # now add the response of each of the disease into lookup table.
+            if disease_record is not None:
+                cached_file_path: str = disease_record.file_path
+                cached_responses = load_response_from_file(cached_file_path)
+            else:
+                cached_responses = {}
+
+            data = fetch_patient_stories_from_source(disease.replace('_', ' '))
+            cached_responses[f"{endpoint}"] = {disease.replace("_", " "): data}
+
+            if disease_record is None:
+                save_response_to_file(file_path, cached_responses)
+                new_record = Disease(id=f"{disease}",
+                                     file_path=file_path)  # Create a new instance of the identified model
+                db.add(new_record)  # Add the new record to the session
+                db.commit()  # Commit the transaction to save the record to the database
+                db.refresh(new_record)  # Refresh the instance to reflect any changes from the DB (like auto-generated
+                # fields)
+                print(f"Record with ID {disease} added to the disease table.")
+            else:
+                save_response_to_file(cached_file_path, cached_responses)
+
+        cached_data.update(cached_responses)
+        await set_cached_response(redis, key, cached_data)
+        return cached_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
