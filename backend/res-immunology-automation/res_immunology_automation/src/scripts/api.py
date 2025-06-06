@@ -17,7 +17,7 @@ import uvicorn
 import logging
 from graphrag_service import get_redis
 from redis import Redis
-import json
+import json, csv
 import requests
 from typing import *
 from gql_variables import DiseaseAnnotationQueryVariables, SearchQuery
@@ -2628,7 +2628,23 @@ async def gwas_studies_data(request: DiseasesRequest, redis: Redis = Depends(get
     except Exception as e:
         # Raise a 500 HTTPException if an error occurs during the request
         raise HTTPException(status_code=500, detail=str(e))
+@app.post("/genomics/locus-zoom-new", tags=["Genomics"])
+async def plot_locus_zoom(request: DiseaseRequest, redis: Redis = Depends(get_redis),
+                            db: Session = Depends(get_db)):
+    try:
+        disease: str = request.disease
+        efo_id: str = get_efo_id(disease.lower())
+        gwas_disease_file_path = os.path.join(GWAS_DATA_DIR, f'{efo_id}.tsv')
+        if not os.path.exists(gwas_disease_file_path):
+            gwas_disease_file_path = load_data(efo_id)
+        return gwas_disease_file_path
 
+    except FileNotFoundError as e:
+        print(e)
+        return None
+
+    except Exception as e:
+        return None
 @app.post("/genomics/locus-zoom", tags=["Genomics"])
 async def plot_locus_zoom(request: DiseasesRequest, redis: Redis = Depends(get_redis),
                             db: Session = Depends(get_db)):
@@ -3760,8 +3776,9 @@ async def get_excel_export(request: ExcelExportRequest):
             association_path_list = []
             for disease in filtered_diseases:
                 request_data = DiseaseRequest(disease=disease)
+                print("request_data: ", request_data.dict())
                 # Make the POST request to the internal API endpoint
-                response = client.post("/genomics/locus-zoom", json=request_data.dict())
+                response = client.post("/genomics/locus-zoom-new", json=request_data.dict())
                 if response.status_code != 200:
                     raise HTTPException(status_code=response.status_code, detail=response.json())
 
