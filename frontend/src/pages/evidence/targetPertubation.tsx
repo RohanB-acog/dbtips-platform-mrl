@@ -6,6 +6,7 @@ import { useQuery } from "react-query";
 import ExportButton from "../../components/exportButton";
 import { useState } from "react";
 import Table from "../../components/table";
+import { capitalizeFirstLetter } from "../../utils/helper";
 const { Option } = Select;
 
 
@@ -86,7 +87,7 @@ const ModelStudies = ({ target }) => {
                   field: "Phenotype",
                   flex: 2.3,
                   valueGetter: (params) => {
-                    return params.data?.Phenotype?.Label;
+                    return capitalizeFirstLetter(params.data?.Phenotype?.Label);
                   },
                   // cellRenderer: (params) => {
                   // 	if (params.data?.Phenotype?.Link) {
@@ -102,7 +103,7 @@ const ModelStudies = ({ target }) => {
                 {
                   field: "Categories",
                   valueGetter: (params) => {
-                    return params.data?.Categories?.map((el) => el.Label);
+                    return params.data?.Categories?.map((el) => el.Label?capitalizeFirstLetter(el.Label):"");
                   },
 
                   // cellRenderer: (params) => {

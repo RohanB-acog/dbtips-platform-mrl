@@ -44,6 +44,8 @@ const ModelStudies: React.FC<ModelStudiesProps> = ({ indications }) => {
         field: "Gene",
         flex: 3,
         headerName: "Gene perturbed",
+        
+
         valueGetter: (params) => {
           return params.data.Gene;
         },
