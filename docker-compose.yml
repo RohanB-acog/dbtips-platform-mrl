@@ -78,6 +78,7 @@ services:
       - AACT_DB_PORT=${AACT_DB_PORT}
       - username=${username}
       - password=${password}
+      - PATIENT_STORIES_URL=${PATIENT_STORIES_URL}
 
   redis-llm:
     image: redis:latest
