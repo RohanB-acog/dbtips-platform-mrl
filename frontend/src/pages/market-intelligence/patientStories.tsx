@@ -1,96 +1,249 @@
-import { useState, useEffect } from "react";
-import Papa from "papaparse";
-import parse from "html-react-parser";
-import { Select } from "antd"; // Import Select from Ant Design
+import { useState, useEffect, useMemo } from "react";
+import { capitalizeFirstLetter } from "../../utils/helper";
+import { Select, Button, Empty, message } from "antd"; // Import Select from Ant Design
+import { useQuery } from "react-query";
+import { fetchData } from "../../utils/fetchData";
 const { Option } = Select;
 import Table from "../../components/table";
 import LoadingButton from "../../components/loading";
+import ColumnSelector from "../../components/columnFilter";
+import { useChatStore } from "chatbot-component";
+import BotIcon from "../../assets/bot.svg?react";
+import { preprocessPatientData } from "../../utils/llmUtils";
+import { convertToArray } from "../../utils/helper";
+// import ExportButton from "../../components/testExportButton";
+import ExportButton from "../../components/exportButton";
+
+
 const separateByPipeline = ({ value }) => {
-  return value
+  return capitalizeFirstLetter( value
     ?.replace(/[\[\]']/g, "")
     ?.split(", ")
-    ?.join("|");
-};
-const parseDate = (dateString) => {
-  const [month, day, year] = dateString.split('/');
-  const fullYear = year.length === 2 ? '20' + year : year;
-  return new Date(fullYear, month - 1, day);
-};
-
-const formatDate = (date) => {
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
+    ?.join("|"));
 };
 
 const PatientStories = ({ indications }) => {
-  const [csvData, setCsvData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]); // Store filtered data
-  const [loading,isLoading] = useState(false);
-  const [selectedDiseases, setSelectedDiseases] = useState(indications); // Use plural for selected diseases
-useEffect(() => {
-    setSelectedDiseases(indications);
-    }
-    , [indications]);
-  // Function to fetch the CSV file based on the selected disease
-  const fetchCsvData = (filePath) => {
-    isLoading(true);
-    fetch(filePath)
-      .then((response) => response.text()) // Read as text
-      .then((text) => {
-        // Parse CSV data
-        Papa.parse(text, {
-          complete: (result) => {
-            setCsvData((prevData) => [...prevData, ...result.data]); // Append new data to existing data
-            setFilteredData((prevData) => [...prevData, ...result.data]); // Also update filtered data with new data
-          },
-          header: true, // If your CSV has a header row
-        });
-      })
-      .catch((error) => {
-        console.error("Error fetching the CSV file:", error);
-      }).finally(()=>{
-        isLoading(false);
-      }
-        );
+  const [selectedDiseases, setSelectedDiseases] = useState(indications);
+  const { register, invoke } = useChatStore();
+  const payload = {
+    diseases: indications,
   };
 
-  useEffect(() => {
-    // Clear previous data before fetching new CSV files
-    setCsvData([]);
-    setFilteredData([]);
+  const {
+    data,
+    error,
+    isLoading: dataLoading,
+  } = useQuery(
+    ["patientStories", payload],
+    () => fetchData(payload, "/market-intelligence/patient-stories/"),
+    {
+      enabled: !!indications.length ,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000,
+      refetchOnMount: false,
+    }
+  );
 
-    if (selectedDiseases.length > 0) {
-      // If "All" is selected, fetch both files
-      if (selectedDiseases.includes("All")) {
-        if (indications.includes("Friedreich ataxia")) {
-          fetchCsvData("/Friedreich%20ataxia.csv");
-        }
-        if (indications.includes("dermatitis, atopic")) {
-          fetchCsvData("/Atopic%20dermatitis.csv");
-        }
-        if (indications.includes("migraine disorder")) {
-          fetchCsvData("/Migraine%20disorder.csv");
-        }
-      } else {
-        // Fetch only the selected disease's CSV file, if it exists in the indications array
-        selectedDiseases.forEach((disease) => {
-          if (disease === "Friedreich ataxia" && indications.includes("Friedreich ataxia")) {
-            fetchCsvData("/Friedreich%20ataxia.csv");
-          } else if (disease === "dermatitis, atopic" && indications.includes("dermatitis, atopic")) {
-            fetchCsvData("/Atopic%20dermatitis.csv");
+  const processedData = useMemo(() => {
+    if (data) {
+      return convertToArray(data);
+    }
+    return [];
+  }, [data]);
+  const filterData = useMemo(() => {
+    if (processedData.length > 0) {
+      // If all diseases are selected (length matches total indications)
+      return selectedDiseases.length === indications.length
+        ? processedData
+        : processedData.filter((row) =>
+          selectedDiseases.some(
+            (indication) =>
+              indication.toLowerCase() === row.Disease.toLowerCase()
+          )
+        );
+    }
+    return [];
+  }, [processedData, selectedDiseases]);
+  useEffect(() => {
+    setSelectedDiseases(indications);
+  }, [indications]);
+  const columnDefs = [
+    {
+      headerName: "Disease",
+      field: "Disease",
+    },
+
+    {
+      headerName: "Title",
+      field: "title",
+      cellRenderer: (params) => {
+        return (
+          <a href={params.data.url} target="_blank">
+            {params.value}
+          </a>
+        );
+      },
+    },
+    {
+      headerName: "Published Date",
+      field: "published_date",
+      filter: 'agDateColumnFilter',
+      // This sets the column filter to agDateColumnFilter
+      filterParams: {
+        // Customize date filter parameters
+        comparator: (filterLocalDateAtMidnight, cellValue) => {
+          // Convert cell value to Date object
+          const dateParts = cellValue.split(' ')[0].split('-');
+          const cellDate = new Date(
+            Number(dateParts[0]),
+            Number(dateParts[1]) - 1,
+            Number(dateParts[2])
+          );
+
+          // Compare dates
+          if (cellDate < filterLocalDateAtMidnight) {
+            return -1;
+          } else if (cellDate > filterLocalDateAtMidnight) {
+            return 1;
           }
-          else if (disease === "migraine disorder" && indications.includes("migraine disorder")) {
-            console.log("fetching data for migraine disorder");
-            fetchCsvData("/Migraine%20disorder.csv");
-          }
+          return 0;
+        },
+      },
+      // Ensure the date column is recognized as a Date type
+      valueFormatter: (params) => {
+        const fixedDate = params.value.replace(' ', 'T'); // "2020-10-20T15:22:08"
+        const date = new Date(fixedDate);
+
+        return date.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
         });
       }
-    }
-  }, [selectedDiseases, indications]); // Fetch new data whenever the disease selection changes or indications change
 
-  // Function to handle disease selection
+
+    },
+    {
+      headerName: "Symptoms",
+      field: "symptoms",
+      cellRenderer: separateByPipeline,
+    },
+    {
+      headerName: "Challenges Faced During Diagnosis",
+      field: "challenges_faced_during_diagnosis",
+      cellRenderer: separateByPipeline,
+    },
+    {
+      headerName: "View Count",
+      field: "view_count",
+      valueGetter: (params) => {
+        return parseInt(params.data.view_count);
+      },
+      sort: 'desc',
+    },
+    {
+      headerName: "Channel Name",
+      field: "channel_name",
+      cellRenderer: (params) => {
+        return capitalizeFirstLetter(params.value);
+      }
+    },
+    {
+      headerName: "Duration (minutes) ",
+      field: "duration_seconds",
+      filter: "agNumberColumnFilter",
+      valueGetter: (params) => {
+        if (!params.data || params.data.duration_seconds == null) return null;
+        const totalSeconds = params.data.duration_seconds;
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return minutes * 60 + seconds;  // Return the raw total seconds (numeric value)
+      },
+      cellRenderer: (params) => {
+        if (params.value == null) return ''; // handle null or empty values
+        const totalSeconds = params.value;
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        const formattedSeconds = seconds.toString().padStart(2, '0');
+        return `${minutes}:${formattedSeconds}`; // Display as minutes:seconds
+      }
+    },
+    {
+      headerName: "Medical History of Patient",
+      field: "medical_history_of_patient",
+      cellRenderer: separateByPipeline,
+    },
+    {
+      headerName: "Description",
+      field: "description",
+      cellRenderer: (params) => {
+        return capitalizeFirstLetter(params.value);
+      },
+    },
+
+    {
+      headerName: "Patient name",
+      field: "name",
+      cellRenderer: (params) => {
+        return capitalizeFirstLetter(params.value);
+      },
+    },
+    {
+      headerName: "Current Age",
+      field: "current_age",
+    },
+    {
+      headerName: "Onset Age",
+      field: "onset_age",
+    },
+    {
+      field: "sex",
+      headrName: "Sex",
+      cellRenderer: (params) => {
+        return capitalizeFirstLetter(params.value);
+      }
+    },
+    {
+      headerName: "Location",
+      field: "location",
+      cellRenderer: (params) => {
+        return capitalizeFirstLetter(params.value);
+      },
+    },
+
+
+
+    {
+      headerName: "Family Medical History",
+      field: "family_medical_history",
+      cellRenderer: separateByPipeline,
+    },
+
+
+  ];
+
+
+
+  const [selectedColumns, setSelectedColumns] = useState([
+    "Disease",
+    "title",
+    "published_date",
+    "symptoms",
+    "challenges_faced_during_diagnosis",
+    "view_count",
+    "channel_name",
+    "duration_seconds",
+    "medical_history_of_patient",
+
+  ]);
+  const visibleColumns = useMemo(() => {
+    return columnDefs.filter((col) => selectedColumns.includes(col.field));
+  }, [columnDefs, selectedColumns]);
+  const handleColumnChange = (columns: string[]) => {
+    setSelectedColumns(columns);
+  };
+
+
   const handleDiseaseChange = (value) => {
     if (value.includes("All")) {
       // If "All" is selected, select all diseases but don't include "All" in display
@@ -106,134 +259,88 @@ useEffect(() => {
       setSelectedDiseases(value);
     }
   };
+  useEffect(() => {
+    const llmData = preprocessPatientData(filterData);
+    register("patient_stories", {
+      disease: ["Friedreich ataxia"],
+
+      data: llmData,
+    });
+
+    // return () => {
+    // 	unregister('pipeline_indications');
+    // };
+  }, [filterData]);
+  const handleLLMCall = () => {
+    if (processedData.length === 0) {
+      message.warning("This feature requires context to be passed to LLM. As there is no data available, this feature cannot be used");
+      return;
+    }
+    invoke("patient_stories", { send: false });
+  };
+
   return (
     <div className="px-[5vw] py-16 bg-gray-50" id="patientStories">
-      <h1 className="text-xl subHeading font-semibold mb-5">Patient stories</h1>
-
-      {/* Disease selection dropdown */}
-      <div className="my-2">
-        <span className="mt-10 mr-1">Disease:</span>
-        <Select
-          mode="multiple"
-          allowClear
-          style={{ width: 500 }}
-          placeholder="Select Diseases"
-          maxTagCount="responsive"
-                    onChange={handleDiseaseChange}
-          value={selectedDiseases} // Set value to selectedDiseases
+      <div className="flex gap-2">
+        <h1 className="text-xl subHeading font-semibold mb-5">
+          Patient stories
+        </h1>
+        <Button
+          type="default" // This will give it a simple outline
+          onClick={handleLLMCall}
+          className="w-18 h-8 text-blue-800 text-sm flex items-center"
         >
-          <Option value="All">All</Option>
-          {indications?.map((disease, index) => (
-            <Option key={index} value={disease}>
-              {disease}
-            </Option>
-          ))}
-        </Select>
+          <BotIcon width={16} height={16} fill="#d50f67" />
+          <span>Ask LLM</span>
+        </Button>
       </div>
-          {
-        loading && <LoadingButton />
-          }
-     { csvData && filteredData && !loading && <div className=" ">
-        <Table
-          rowData={filteredData}
-         
-          columnDefs={[
-            {
-              field: "Disease",
-              headerName: "Disease",
-              flex: 2,
-            },
-            {
-              field: "Video title",
-              headerName: "Video Title",
-              cellRenderer: (params) => {
-                return parse(params.value);
-              },
-              minWidth: 300,
-            },
-            {
-              field: "Name",
-              headerName: "Name",
-            },
-            {
-              field: "Age at video publication",
-              headerName: "Age",
-              maxWidth: 100,
-            },
-            {
-              field: "Location",
-              headerName: "Location",
-            },
-            {
-              field: "Symptoms",
-              headerName: "Symptoms",
-              cellRenderer: separateByPipeline,
-            },
-            {
-              field: "Medical history of patient",
-              headerName: "Medical History",
-              cellRenderer: separateByPipeline,
-            },
-            {
-              field: "Family medical history",
-              cellRenderer: separateByPipeline,
-            },
-            {
-              field: "Challenges faced during diagnosis",
-              headerName: "Challenges Faced During Diagnosis",
-              cellRenderer: separateByPipeline,
-            },
-            {
-              field: "Duration minutes",
-              headerName: "Duration (in mins)",
-              valueGetter: (params) => {
-                if (!params.data["Duration minutes"]) return '';  // Ensure the field exists
-                
-                const timeStr = params.data["Duration minutes"];
-                let [minutes, seconds] = timeStr.split('.').map(Number);
-                
-                // Adjust if seconds are greater than or equal to 60
-                if (seconds >= 60) {
-                  minutes += Math.floor(seconds / 60);  // Add full minutes
-                  seconds = seconds % 60;  // Get the remaining seconds
-                }
-                
-                // Return the adjusted time as a string in the format "minutes.seconds"
-                return `${minutes}.${seconds}`;
-              }
-            },
-            
-            {
-              field: "Published date",
-              filter: "agDateColumnFilter",
-              filterParams: {
-                comparator: (filterLocalDateAtMidnight, cellValue) => {
-                  if (!cellValue) return -1;
-                  const cellDate = parseDate(cellValue);
-                  if (cellDate < filterLocalDateAtMidnight) return -1;
-                  else if (cellDate > filterLocalDateAtMidnight) return 1;
-                  else return 0;
-                },
-                browserDatePicker: true
-              },
-              valueFormatter: (params) => {
-                if (!params.value) return '';
-                const date = parseDate(params.value);
-                return formatDate(date); // Will show as DD/MM/YYYY
-              }
-            },
-            {
-              field: "Number of views",
-            },
-            {
-              field: "Sex",
-              maxWidth: 100,
-            },
-          ]}
-         
-        />
-      </div>}
-    
+      {/* Disease selection dropdown */}
+
+      {dataLoading && <LoadingButton />}
+      {error && !dataLoading && (
+        <div className="mt-4 h-[50vh]  flex items-center justify-center">
+          <Empty description={`${error}`} />
+        </div>
+      )}
+      {filterData && !dataLoading && (
+        <div className=" ">
+          <div className="my-2 flex justify-between">
+            <div>
+              <span className="mt-10 mr-1">Disease:</span>
+              <Select
+                mode="multiple"
+                allowClear
+                style={{ width: 500 }}
+                placeholder="Select Diseases"
+                maxTagCount="responsive"
+                onChange={handleDiseaseChange}
+                value={selectedDiseases} // Set value to selectedDiseases
+              >
+                <Option value="All">All</Option>
+                {indications?.map((disease, index) => (
+                  <Option key={index} value={disease}>
+                    {disease}
+                  </Option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex gap-2">
+              <div className="flex gap-2 ">
+                <ColumnSelector
+                  allColumns={columnDefs}
+                  defaultSelectedColumns={selectedColumns}
+                  onChange={handleColumnChange}
+                />
+{                   processedData.length>0 &&   <ExportButton fileName="patientStories" endpoint="/market-intelligence/patient-stories/" indications={["Friedreich ataxia"]} />
+}
+              </div>
+
+              {/* <ExportButton fileName="patientStories" endpoint="/market-intelligence/patient-stories/" indications={indications} /> */}
+            </div>
+          </div>
+          <Table rowData={filterData} columnDefs={visibleColumns} />
+        </div>
+      )}
     </div>
   );
 };
