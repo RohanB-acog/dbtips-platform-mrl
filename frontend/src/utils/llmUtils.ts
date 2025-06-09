@@ -221,7 +221,7 @@ export const preprocessPatientData = (data) => {
 	const columns = [
 	  "Disease",
 	  "title",
-	  "description",
+	//   "description",
 	  "published_date",
 	  "name",
 	  "current_age",
@@ -254,7 +254,7 @@ export const preprocessPatientData = (data) => {
 		const {
 		  Disease,
 		  title,
-		  description,
+		//   description,
 		  published_date,
 		  name,
 		  current_age,
@@ -276,7 +276,7 @@ export const preprocessPatientData = (data) => {
 		return [
 		  escapeCsvField(Disease || ""),
 		  escapeCsvField(title || ""),
-		  escapeCsvField(description || ""),
+		//   escapeCsvField(description || ""),
 		  escapeCsvField(published_date || ""),
 		  escapeCsvField(name || ""),
 		  escapeCsvField(current_age || ""),
