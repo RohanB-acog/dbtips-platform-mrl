@@ -2296,13 +2296,12 @@ semaphore = asyncio.Semaphore(1)
 async def get_rna_sequence_semaphore(
         request: DiseasesRequest,  # Pydantic model that contains the target and diseases list
         redis: Redis = Depends(get_redis),  # Redis dependency for caching
-        db: Session = Depends(get_db),
-        build_cache: bool = False
+        db: Session = Depends(get_db)
 ):
     try:
         async with semaphore:  # This will block concurrent requests
             print(f"lock applied and processing {request.diseases}")
-            response =  await get_rna_sequence(request, redis, db, build_cache)
+            response =  await get_rna_sequence(request, redis, db)
             print("lock removed")
     except Exception as e:
         raise e
@@ -2312,8 +2311,7 @@ async def get_rna_sequence_semaphore(
 async def get_rna_sequence(
         request: DiseasesRequest,  # Pydantic model that contains the target and diseases list
         redis: Redis = Depends(get_redis),  # Redis dependency for caching
-        db: Session = Depends(get_db),
-        build_cache: bool = False
+        db: Session = Depends(get_db)
     ):
     """
     Fetches RNA sequence data for list of diseases.
@@ -2364,42 +2362,42 @@ async def get_rna_sequence(
         return cached_response_redis
 
     try:
-        if build_cache == True:
-            if is_rate_limited():
-                remaining_time = int(rate_limited_until - time.time())
-                raise HTTPException(status_code=429, detail=f"Rate limit in effect. Try again after {remaining_time} seconds.")
         
-            response: dict = get_geo_data_for_diseases(filtered_diseases)
-            response=add_platform_name(response)
-            response=add_study_type(response)
+        if is_rate_limited():
+            remaining_time = int(rate_limited_until - time.time())
+            raise HTTPException(status_code=429, detail=f"Rate limit in effect. Try again after {remaining_time} seconds.")
+    
+        response: dict = get_geo_data_for_diseases(filtered_diseases)
+        response=add_platform_name(response)
+        response=add_study_type(response)
 
-            for disease, value in response.items():
-                disease_key: str = disease.strip().lower().replace(" ", "_")
-                disease_record = db.query(Disease).filter_by(id=f"{disease_key}").first()
-                file_path: str = os.path.join(cache_dir, f"{disease_key}.json")
+        for disease, value in response.items():
+            disease_key: str = disease.strip().lower().replace(" ", "_")
+            disease_record = db.query(Disease).filter_by(id=f"{disease_key}").first()
+            file_path: str = os.path.join(cache_dir, f"{disease_key}.json")
 
-                # now add the response of each of the disease into lookup table.
-                if disease_record is not None:
-                    cached_file_path: str = disease_record.file_path
-                    cached_responses = load_response_from_file(cached_file_path)
-                else:
-                    cached_responses = {}
+            # now add the response of each of the disease into lookup table.
+            if disease_record is not None:
+                cached_file_path: str = disease_record.file_path
+                cached_responses = load_response_from_file(cached_file_path)
+            else:
+                cached_responses = {}
 
-                cached_responses[f"{endpoint}"] = {disease: value}
+            cached_responses[f"{endpoint}"] = {disease: value}
 
-                if disease_record is None:
-                    save_response_to_file(file_path, cached_responses)
-                    new_record = Disease(id=f"{disease_key}",
-                                        file_path=file_path)  # Create a new instance of the identified model
-                    db.add(new_record)  # Add the new record to the session
-                    db.commit()  # Commit the transaction to save the record to the database
-                    db.refresh(new_record)  # Refresh the instance to reflect any changes from the DB (like auto-generated
-                    # fields)
-                    print(f"Record with ID {disease} added to the disease table.")
-                else:
-                    save_response_to_file(cached_file_path, cached_responses)
-            response.update(cached_data)
-            await set_cached_response(redis, key, response)
+            if disease_record is None:
+                save_response_to_file(file_path, cached_responses)
+                new_record = Disease(id=f"{disease_key}",
+                                    file_path=file_path)  # Create a new instance of the identified model
+                db.add(new_record)  # Add the new record to the session
+                db.commit()  # Commit the transaction to save the record to the database
+                db.refresh(new_record)  # Refresh the instance to reflect any changes from the DB (like auto-generated
+                # fields)
+                print(f"Record with ID {disease} added to the disease table.")
+            else:
+                save_response_to_file(cached_file_path, cached_responses)
+        response.update(cached_data)
+        await set_cached_response(redis, key, response)
 
         # Return the JSON response from the API
         return response
@@ -2438,7 +2436,7 @@ async def get_top_10_literature(request: DiseasesRequest):
 #################################### Genomics Data ##############################################
 @app.post("/genomics/pgscatalog", tags=["Genomics"])
 async def pgs_catalog_data(request: DiseasesRequest, redis: Redis = Depends(get_redis),
-                            db: Session = Depends(get_db)):
+                            db: Session = Depends(get_db), build_cache: bool = False):
     
     """
     Fetches Genomics Data for given diseases using PGSCatalog API.
@@ -2488,45 +2486,45 @@ async def pgs_catalog_data(request: DiseasesRequest, redis: Redis = Depends(get_
         return cached_response_redis
 
     try:
-        
-        diseases_and_efo: Dict[str, str] = {}  # Dictionary to store disease names and their corresponding EFO IDs
+        if build_cache == True:
+            diseases_and_efo: Dict[str, str] = {}  # Dictionary to store disease names and their corresponding EFO IDs
 
-        for disease in filtered_diseases:
-            disease_name: str = disease.strip().lower().replace(" ", "_")
-            disease_record = db.query(Disease).filter_by(id=f"{disease_name}").first()
-            file_path: str = os.path.join(cache_dir, f"{disease_name}.json")
+            for disease in filtered_diseases:
+                disease_name: str = disease.strip().lower().replace(" ", "_")
+                disease_record = db.query(Disease).filter_by(id=f"{disease_name}").first()
+                file_path: str = os.path.join(cache_dir, f"{disease_name}.json")
 
-            # now add the response of each of the disease into lookup table.
-            if disease_record is not None:
-                cached_file_path: str = disease_record.file_path
-                cached_responses = load_response_from_file(cached_file_path)
-            else:
-                cached_responses = {}
-            
-            # Fetch PGS CAtalog data using EFO IDs
-            efo_id: str = get_efo_id(disease_name.replace('_', ' ').lower())
-            if efo_id:
-                diseases_and_efo[disease_name] = efo_id.replace(':', '_')
-                genomics_data = fetch_pgs_data(efo_id)
-            else:
-                genomics_data = [f"EFO ID not found for {disease_name.replace('_', ' ')}"]
+                # now add the response of each of the disease into lookup table.
+                if disease_record is not None:
+                    cached_file_path: str = disease_record.file_path
+                    cached_responses = load_response_from_file(cached_file_path)
+                else:
+                    cached_responses = {}
+                
+                # Fetch PGS CAtalog data using EFO IDs
+                efo_id: str = get_efo_id(disease_name.replace('_', ' ').lower())
+                if efo_id:
+                    diseases_and_efo[disease_name] = efo_id.replace(':', '_')
+                    genomics_data = fetch_pgs_data(efo_id)
+                else:
+                    genomics_data = [f"EFO ID not found for {disease_name.replace('_', ' ')}"]
 
-            cached_responses[f"{endpoint}"] = genomics_data
-            if disease_record is None:
-                save_response_to_file(file_path, cached_responses)
-                new_record = Disease(id=f"{disease}",
-                                     file_path=file_path)  # Create a new instance of the identified model
-                db.add(new_record)  # Add the new record to the session
-                db.commit()  # Commit the transaction to save the record to the database
-                db.refresh(new_record)  # Refresh the instance to reflect any changes from the DB (like auto-generated
-                # fields)
-                print(f"Record with ID {disease} added to the disease table.")
-            else:
-                save_response_to_file(cached_file_path, cached_responses)
-            print('disease: ', disease)
-            print("output: ", cached_responses[f"{endpoint}"])
-            response[disease.replace('_', ' ')]=cached_responses[f"{endpoint}"]
-        await set_cached_response(redis, key, response)
+                cached_responses[f"{endpoint}"] = genomics_data
+                if disease_record is None:
+                    save_response_to_file(file_path, cached_responses)
+                    new_record = Disease(id=f"{disease}",
+                                        file_path=file_path)  # Create a new instance of the identified model
+                    db.add(new_record)  # Add the new record to the session
+                    db.commit()  # Commit the transaction to save the record to the database
+                    db.refresh(new_record)  # Refresh the instance to reflect any changes from the DB (like auto-generated
+                    # fields)
+                    print(f"Record with ID {disease} added to the disease table.")
+                else:
+                    save_response_to_file(cached_file_path, cached_responses)
+                print('disease: ', disease)
+                print("output: ", cached_responses[f"{endpoint}"])
+                response[disease.replace('_', ' ')]=cached_responses[f"{endpoint}"]
+            await set_cached_response(redis, key, response)
 
         # Return the JSON response from the API
         return response
