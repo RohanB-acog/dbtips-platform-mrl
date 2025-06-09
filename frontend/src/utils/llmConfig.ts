@@ -34,6 +34,11 @@ export const config = {
 			id:"gwas",
 			label:"GWAS Studies",
 			description_prompt: '{$data}',
-		}
+		},
+		{
+			id:"patient_stories",
+			label:"Patient Stories",
+			description_prompt: '{$data}',
+		},
 	],
 };
