@@ -11,7 +11,8 @@ from api import get_evidence_literature_semaphore, get_mouse_studies, \
                 get_anatomy, get_protein_structure, get_target_mouse_studies, \
                 get_targetability, get_gene_essentiality_map, get_tractability, \
                 get_paralogs, get_target_pipeline_all_semaphore, get_evidence_target_literature, \
-                search_patents, get_complete_indication_pipeline
+                search_patents, get_complete_indication_pipeline, get_disease_gtr_data_semaphore, \
+                pgs_catalog_data
                 
 import logging
 import time
@@ -273,7 +274,9 @@ async def run_endpoints(job_data):
             get_key_influencers, 
             get_rna_sequence_semaphore,
             get_diseases_profiles_llm,
-            get_complete_indication_pipeline
+            get_complete_indication_pipeline,
+            pgs_catalog_data,
+            get_disease_gtr_data_semaphore
         ]
 
         disease_only_endpoints = [
@@ -315,6 +318,8 @@ async def run_endpoints(job_data):
                         response = await endpoint(request_data, db=db )
                     elif endpoint.__name__ in ["get_top_10_literature", 'get_key_influencers']:
                         response = await endpoint(request_data)
+                    elif endpoint.__name__ in ['get_evidence_literature_semaphore', 'get_diseases_profiles_llm', 'get_disease_gtr_data_semaphore', 'pgs_catalog_data']:
+                        response = await endpoint(request_data, redis=redis, db=db, build_cache=True)
                     else:
                         response = await endpoint(request_data, redis=redis, db=db )
                     logging.info("\t\t\t\tResponse received")
