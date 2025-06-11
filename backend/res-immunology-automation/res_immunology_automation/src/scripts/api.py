@@ -68,7 +68,7 @@ from component_services.market_intelligence_service import extract_nct_ids, fetc
     # get_target_pipeline_strapi
 from component_services.evidence_services import build_query, get_geo_data_for_diseases,fetch_mouse_models,\
     fetch_and_filter_figures_by_disease_and_pmids,fetch_mouse_model_data_alliancegenome,\
-    get_top_10_literature_helper,add_platform_name,add_study_type, get_mesh_term_for_disease, build_query_target
+    get_top_10_literature_helper,add_platform_name,add_study_type, add_sample_type, get_mesh_term_for_disease, build_query_target
 from component_services.disease_profile_llm import disease_interpreter
 from component_services.target_services import find_matching_screens_for_target,fetch_subcellular_locations
 from fastapi.testclient import TestClient
@@ -2381,6 +2381,8 @@ async def get_rna_sequence(
             response: dict = get_geo_data_for_diseases(filtered_diseases)
             response=add_platform_name(response)
             response=add_study_type(response)
+            response=add_sample_type(response)
+
 
             for disease, value in response.items():
                 disease_key: str = disease.strip().lower().replace(" ", "_")

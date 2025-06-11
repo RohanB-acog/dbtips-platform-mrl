@@ -23,6 +23,29 @@ LOGS_DIR = os.path.join(CACHE_DIR, "logs")
 ERROR_LOGS_DIR = os.path.join(CACHE_DIR, "error_logs")  # New directory for error logs
 
 
+def to_dossier_status_id(disease_id):
+    """Convert a disease ID to the format used in disease_dossier_status (spaces)."""
+    return disease_id.replace("_", " ")
+
+
+def to_file_system_id(disease_id):
+    """Convert a disease ID to the format used in file system and disease table (underscores)."""
+    return disease_id.replace(" ", "_")
+
+
+def sanitize_disease_id(disease_id):
+    """
+    Sanitize disease ID for file operations by:
+    1. Trimming leading/trailing whitespace
+    2. Replacing spaces with underscores
+    """
+    if disease_id is None:
+        return None
+    
+    # Trim whitespace and replace spaces with underscores
+    return to_file_system_id(disease_id.strip())
+
+
 def setup_logging(log_name):
     """Set up logging configuration for modules."""
     logger = logging.getLogger(log_name)
@@ -51,19 +74,22 @@ async def get_disease_timestamp(disease_id):
     """Get timestamp from database for a specific disease."""
     logger = setup_logging("disease_timestamp")
     
+    # Sanitize disease ID for consistent lookup
+    sanitized_id = sanitize_disease_id(disease_id)
+    
     try:
         # Import here to avoid circular imports
         sys.path.append(BASE_DIR)
         from build_dossier import SessionLocal
-        from db.models import DiseasesDossierStatus
+        from db.models import DiseaseDossierStatus
         
         async with SessionLocal() as db:
             # Get the submission time for the specific disease
             result = await db.execute(
-                select(DiseasesDossierStatus.submission_time)
+                select(DiseaseDossierStatus.submission_time)
                 .where(
-                    DiseasesDossierStatus.id == disease_id,
-                    DiseasesDossierStatus.status == "processed"
+                    DiseaseDossierStatus.disease == to_dossier_status_id(disease_id),  # Use dossier format for DB lookup
+                    DiseaseDossierStatus.status == "processed"
                 )
             )
             
@@ -100,7 +126,8 @@ def log_error_to_json(disease_id, error_type, error_message, module="general", e
     """Log errors to a JSON file in the error_logs directory with module categorization."""
     os.makedirs(ERROR_LOGS_DIR, exist_ok=True)
     
-    error_file = os.path.join(ERROR_LOGS_DIR, f"{disease_id}_errors.json")
+    sanitized_id = sanitize_disease_id(disease_id)
+    error_file = os.path.join(ERROR_LOGS_DIR, f"{sanitized_id}_errors.json")
     
     # Create or update the error log
     try:
@@ -136,48 +163,14 @@ def log_error_to_json(disease_id, error_type, error_message, module="general", e
             
     except Exception as e:
         logger = setup_logging("error_logger")
-        logger.error(f"Failed to log error to JSON for disease {disease_id}: {str(e)}")    
-    os.makedirs(ERROR_LOGS_DIR, exist_ok=True)
-    
-    error_file = os.path.join(ERROR_LOGS_DIR, f"{disease_id}_errors.json")
-    
-    # Create or update the error log
-    try:
-        if os.path.exists(error_file):
-            with open(error_file, 'r') as f:
-                error_log = json.load(f)
-        else:
-            error_log = {
-                "disease_id": disease_id,
-                "errors": []
-            }
-        
-        # Add new error
-        timestamp = datetime.now(tzlocal.get_localzone()).strftime("%Y-%m-%d %H:%M:%S")
-        error_entry = {
-            "timestamp": timestamp,
-            "error_type": error_type,
-            "message": str(error_message)
-        }
-        
-        if attempt is not None:
-            error_entry["attempt"] = attempt
-            
-        error_log["errors"].append(error_entry)
-        
-        # Write back to file
-        with open(error_file, 'w') as f:
-            json.dump(error_log, f, indent=2)
-            
-    except Exception as e:
-        logger = setup_logging("error_logger")
         logger.error(f"Failed to log error to JSON for disease {disease_id}: {str(e)}")
 
 
 def find_latest_backup_for_disease(disease_id):
     """Find the latest backup file for a specific disease."""
+    sanitized_id = sanitize_disease_id(disease_id)
     backup_dir = os.path.join(BACKUP_DIR, "disease")
-    backup_pattern = f"{disease_id}_*.json"
+    backup_pattern = f"{sanitized_id}_*.json"
     
     backup_files = glob.glob(os.path.join(backup_dir, backup_pattern))
     if not backup_files:
@@ -194,6 +187,7 @@ def get_all_disease_ids():
         return []
     
     json_files = glob.glob(os.path.join(DISEASE_CACHE_DIR, "*.json"))
+    # Return unsanitized disease IDs (with underscores still in place)
     return [Path(file).stem for file in json_files]
 
 
@@ -237,6 +231,7 @@ async def retry_with_backoff(func, max_retries=5, initial_backoff=5, *args, **kw
             current_backoff = min(current_backoff * 2, 60)
     
     return False, f"Failed after {max_retries} retries"
+
 
 async def create_directories():
     """Create all necessary directories for cache management."""

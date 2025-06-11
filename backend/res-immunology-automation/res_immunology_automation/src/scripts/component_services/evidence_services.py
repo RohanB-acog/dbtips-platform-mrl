@@ -1647,6 +1647,109 @@ def add_study_type(data: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict
     return data
 
 
+def add_sample_type(data: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Adds a new field 'SampleType' to each record with additional debug logging.
+    Modified to only use 'Diseased' and 'Both' categories based on specific criteria.
+    """
+    import logging
+    logging.info("Starting add_sample_type function")
+    
+    try:
+        # Keywords to identify control samples (case-insensitive)
+        control_keywords: List[str] = [
+            "control", "healthy", "normal", "baseline", "wild type", 
+            "sham", "disease free", "unaffected", "ctrl"
+        ]
+        
+        # Keywords to identify diseased samples (case-insensitive)
+        disease_keywords: List[str] = [
+            "disease", "affected", "pathological", "case", "patient", 
+            "tumor", "cancer", "infected", "lesion", "fibrosis", 
+            "inflammation", "dysplastic", "mutant", "knockout", 
+            "treated", "experimental", "induced", "injury", "drug"
+        ]
+
+        for disease, records in data.items():
+            logging.info(f"Processing disease: {disease} with {len(records)} records")
+            
+            for i, record in enumerate(records):
+                try:
+                    logging.info(f"Processing record {i} for disease {disease}")
+                    
+                    # Safe string extraction with type checking
+                    title_string = ""
+                    if "Title" in record:
+                        if isinstance(record["Title"], list):
+                            title_items = []
+                            for item in record["Title"]:
+                                title_items.append(str(item))
+                            title_string = " ".join(title_items).lower()
+                        elif isinstance(record["Title"], str):
+                            title_string = record["Title"].lower()
+                        else:
+                            logging.warning(f"Unexpected Title type: {type(record['Title'])}")
+                    
+                    design_string = ""
+                    if "Design" in record:
+                        if isinstance(record["Design"], list):
+                            design_items = []
+                            for item in record["Design"]:
+                                design_items.append(str(item))
+                            design_string = " ".join(design_items).lower()
+                        elif isinstance(record["Design"], str):
+                            design_string = record["Design"].lower()
+                        else:
+                            logging.warning(f"Unexpected Design type: {type(record['Design'])}")
+                    
+                    summary_string = ""
+                    if "Summary" in record and record["Summary"] is not None:
+                        summary_string = str(record["Summary"]).lower()
+                    
+                    sample_string = ""
+                    if "Samples" in record:
+                        if isinstance(record["Samples"], list):
+                            sample_items = []
+                            for item in record["Samples"]:
+                                sample_items.append(str(item))
+                            sample_string = " ".join(sample_items).lower()
+                        elif isinstance(record["Samples"], str):
+                            sample_string = record["Samples"].lower()
+                        else:
+                            logging.warning(f"Unexpected Samples type: {type(record['Samples'])}")
+                    
+                    # Combine all strings for comprehensive searching
+                    combined_string = f"{title_string} {design_string} {summary_string} {sample_string}"
+                    
+                    # Check for presence of control and disease keywords
+                    has_control = any(keyword in combined_string for keyword in control_keywords)
+                    has_disease = any(keyword in combined_string for keyword in disease_keywords)
+                    
+                    # Modified logic: Only use 'Diseased' and 'Both' categories
+                    if has_control and has_disease:
+                        record["SampleType"] = "Both"
+                    elif has_disease and not has_control:
+                        record["SampleType"] = "Diseased"
+                    else:
+                        # Default case - not having disease keywords or having only control keywords
+                        record["SampleType"] = "Unknown"
+                        
+                    logging.info(f"Record {i} processed successfully, SampleType: {record['SampleType']}")
+                    
+                except Exception as e:
+                    logging.error(f"Error processing record {i}: {str(e)}")
+                    record["SampleType"] = "Error"  # Set a default value
+                    
+        logging.info("Completed add_sample_type function")
+        return data
+        
+    except Exception as e:
+        logging.error(f"Fatal error in add_sample_type: {str(e)}")
+        # Return original data if function fails
+        return data
+
+
+
 
 # Function to fetch MeSH descriptor data for a disease name
 def fetch_mesh_descriptor(disease_name):

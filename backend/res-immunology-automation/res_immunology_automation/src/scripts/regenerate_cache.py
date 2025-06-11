@@ -20,15 +20,20 @@ Operations:
     help                     Display this help message
 
 Examples:
-    python cache_main.py backup 12345     # Backup disease with ID 12345
-    python cache_main.py backup           # Backup all processed diseases
-    python cache_main.py full 12345       # Full cycle for disease with ID 12345
+    python cache_main.py --backup           # Backup all processed diseases
+    python cache_main.py --clear            # Clear out all processed diseases 
+    python cache_main.py --regenerate       # Regenerate all processed diseases 
+    python cache_main.py --full             # Perform full operation cycle
+    python cache_main.py --restore          # Restore all the backedup diseases to the main directory
 """
 
 import asyncio
 import sys
 import os
 import traceback
+from datetime import datetime
+import glob
+from sqlalchemy import select
 
 # Add the script directory to the Python path
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -39,14 +44,13 @@ from cache_management.backup import backup_single_disease, backup_processed_dise
 from cache_management.clear_cache import clear_single_disease, clear_and_create_empty_files
 from cache_management.regenerate import regenerate_single_disease, regenerate_cache, update_disease_status
 from cache_management.restore import restore_from_backup, restore_single_disease
-from cache_management.utils import setup_logging, create_backup_directories, log_error_to_json
+from cache_management.utils import setup_logging, create_backup_directories, log_error_to_json, BASE_DIR, to_dossier_status_id
+from cache_management.backup import get_processed_diseases_ordered_by_time
 
-
-# Import build_dossier modules directly to ensure they're available
-try:
-    from build_dossier import get_db, run_endpoints, SessionLocal, DiseasesDossierStatus
-except ImportError:
-    pass  # Will be handled in the modules that need these imports
+# Import database models
+sys.path.append(BASE_DIR)
+from build_dossier import SessionLocal
+from db.models import DiseaseDossierStatus
 
 
 class CacheManagementError(Exception):
@@ -54,49 +58,88 @@ class CacheManagementError(Exception):
     pass
 
 
+async def clear_previous_logs():
+    """Clear all previous log files in the cached_data_json/logs directory."""
+    logger = setup_logging("clear_logs")
+    logs_dir = os.path.join(BASE_DIR, "cached_data_json", "logs")
+    try:
+        if os.path.exists(logs_dir):
+            log_files = glob.glob(os.path.join(logs_dir, "*.log"))
+            for log_file in log_files:
+                os.remove(log_file)
+            logger.info(f"Successfully cleared {len(log_files)} log files from {logs_dir}")
+        else:
+            logger.warning(f"Logs directory {logs_dir} does not exist")
+    except Exception as e:
+        logger.error(f"Error clearing log files: {str(e)}")
+
+
 async def print_usage():
     """Display usage instructions."""
     print(__doc__)
 
 
+async def validate_disease_id(disease_id):
+    """Validate if the disease ID exists in the disease_dossier_status table."""
+    logger = setup_logging("validate_disease")
+    # Convert the provided disease_id to the format used in disease_dossier_status (spaces)
+    dossier_status_id = to_dossier_status_id(disease_id)
+    
+    try:
+        async with SessionLocal() as db:
+            result = await db.execute(
+                select(DiseaseDossierStatus).where(DiseaseDossierStatus.disease == dossier_status_id)
+            )
+            disease_record = result.scalars().first()
+            if not disease_record:
+                logger.error(f"Disease ID {disease_id} (dossier ID: {dossier_status_id}) not found in disease_dossier_status table.")
+                return False
+            logger.info(f"Disease ID {disease_id} (dossier ID: {dossier_status_id}) validated successfully.")
+            return True
+    except Exception as e:
+        logger.error(f"Error validating disease ID {disease_id} (dossier ID: {dossier_status_id}): {str(e)}")
+        return False
+
+
 async def perform_full_cycle_for_disease(disease_id):
     """Perform full cache management cycle for a single disease."""
     logger = setup_logging("full_cycle")
-    logger.info(f"Starting full cache management cycle for disease {disease_id}...")
+    dossier_status_id = to_dossier_status_id(disease_id)
+    logger.info(f"Starting full cache management cycle for disease {disease_id} (dossier ID: {dossier_status_id})...")
     
     try:
         # Step 1: Backup
-        logger.info(f"Step 1: Backing up disease {disease_id}...")
+        logger.info(f"Step 1: Backing up disease {disease_id} (dossier ID: {dossier_status_id})...")
         backup_result = await backup_single_disease(disease_id)
         if not backup_result:
-            error_msg = f"Backup step failed for disease {disease_id}"
+            error_msg = f"Backup step failed for disease {disease_id} (dossier ID: {dossier_status_id})"
             logger.error(error_msg)
             log_error_to_json(disease_id, "backup_failure", error_msg)
             return False
         
         # Step 2: Clear cache
-        logger.info(f"Step 2: Clearing cache for disease {disease_id}...")
+        logger.info(f"Step 2: Clearing cache for disease {disease_id} (dossier ID: {dossier_status_id})...")
         clear_result = await clear_single_disease(disease_id)
         if not clear_result:
-            error_msg = f"Clear step failed for disease {disease_id}"
+            error_msg = f"Clear step failed for disease {disease_id} (dossier ID: {dossier_status_id})"
             logger.error(error_msg)
             log_error_to_json(disease_id, "clear_failure", error_msg)
             return False
         
         # Step 3: Regenerate
-        logger.info(f"Step 3: Regenerating cache for disease {disease_id}...")
+        logger.info(f"Step 3: Regenerating cache for disease {disease_id} (dossier ID: {dossier_status_id})...")
         regenerate_result = await regenerate_single_disease(disease_id)
         if not regenerate_result:
-            error_msg = f"Regeneration step failed for disease {disease_id}"
+            error_msg = f"Regeneration step failed for disease {disease_id} (dossier ID: {dossier_status_id})"
             logger.error(error_msg)
             log_error_to_json(disease_id, "regenerate_failure", error_msg)
             return False
         
-        logger.info(f"Full cache management cycle for disease {disease_id} completed successfully.")
+        logger.info(f"Full cache management cycle for disease {disease_id} (dossier ID: {dossier_status_id}) completed successfully.")
         return True
         
     except Exception as e:
-        error_msg = f"Unexpected error in full cycle for disease {disease_id}: {str(e)}"
+        error_msg = f"Unexpected error in full cycle for disease {disease_id} (dossier ID: {dossier_status_id}): {str(e)}"
         logger.error(error_msg)
         logger.error(traceback.format_exc())
         log_error_to_json(disease_id, "full_cycle_error", error_msg)
@@ -104,27 +147,31 @@ async def perform_full_cycle_for_disease(disease_id):
 
 
 async def perform_full_cycle():
-    """Perform a full cache management cycle for all processed diseases."""
+    """Perform a full cache management cycle for all processed diseases in chronological order."""
     logger = setup_logging("full_cycle")
-    logger.info("Starting full cache management cycle for all processed diseases...")
+    logger.info("Starting full cache management cycle for all processed diseases in chronological order...")
     
     try:
-        # Get all processed diseases
-        disease_ids = await backup_processed_diseases()
+        # Get all processed diseases ordered by processed_time
+        disease_records = await get_processed_diseases_ordered_by_time()
         
-        if not disease_ids:
+        if not disease_records:
             logger.warning("No processed diseases found to perform full cycle.")
-            return True  # Return true since there's nothing to do
+            return True
         
-        logger.info(f"Found {len(disease_ids)} processed diseases to cycle through")
+        # Extract just the disease IDs
+        disease_ids = [record["id"] for record in disease_records]
         
-        # Process each disease one by one
+        logger.info(f"Found {len(disease_ids)} processed diseases to cycle through, ordered by processing time")
+        
+        # Process each disease
         success_count = 0
         for disease_id in disease_ids:
+            logger.info(f"Starting full cycle for disease {disease_id}")
             result = await perform_full_cycle_for_disease(disease_id)
             if result:
                 success_count += 1
-            await asyncio.sleep(2)  # Small delay between processing diseases
+            await asyncio.sleep(2)
         
         logger.info(f"Full cycle completed: {success_count}/{len(disease_ids)} diseases processed successfully")
         return success_count > 0
@@ -136,7 +183,7 @@ async def perform_full_cycle():
 
 
 async def execute_operation(operation_name, operation_func, *args):
-    """Execute a cache management operation with proper error handling."""
+    """Execute a cache management operation with error handling."""
     logger = setup_logging("execute_operation")
     
     try:
@@ -162,6 +209,9 @@ async def execute_operation(operation_name, operation_func, *args):
 async def main():
     """Main entry point for the cache management script."""
     try:
+        # Clear previous log files
+        await clear_previous_logs()
+        
         # Create necessary directories
         await create_backup_directories()
         
@@ -176,16 +226,23 @@ async def main():
         disease_id = None
         if len(sys.argv) > 2 and operation != "help":
             disease_id = sys.argv[2]
+            # Validate the disease ID
+            if not await validate_disease_id(disease_id):
+                print(f"Error: Disease ID '{disease_id}' not found in the database (after conversion to '{to_dossier_status_id(disease_id)}').")
+                return
         
+        # Process the operation
         if operation == "help" or operation == "--help":
             await print_usage()
             
-        elif operation == "backup":
+        elif operation == "--backup":
             if disease_id:
-                # Backup specific disease
-                await execute_operation(f"Backup of disease {disease_id}", backup_single_disease, disease_id)
+                await execute_operation(
+                    f"Backup of disease {disease_id}", 
+                    backup_single_disease, 
+                    disease_id
+                )
             else:
-                # Backup all processed diseases
                 disease_ids = await backup_processed_diseases()
                 if not disease_ids:
                     print("No processed diseases found to backup.")
@@ -197,42 +254,49 @@ async def main():
                     result = await backup_single_disease(d_id)
                     if result:
                         success_count += 1
-                    await asyncio.sleep(1)  # Small delay
+                    await asyncio.sleep(1)
                     
                 print(f"Backup completed: {success_count}/{len(disease_ids)} successful.")
                 
-        elif operation == "clear":
+        elif operation == "--clear":
             if disease_id:
-                # Clear specific disease
-                await execute_operation(f"Cache clearing for disease {disease_id}", clear_single_disease, disease_id)
+                await execute_operation(
+                    f"Cache clearing for disease {disease_id}", 
+                    clear_single_disease, 
+                    disease_id
+                )
             else:
-                # Clear all processed diseases
                 await execute_operation("Cache clearing for all processed diseases", clear_and_create_empty_files)
                 
-        elif operation == "regenerate":
+        elif operation == "--regenerate":
             if disease_id:
-                # First update status to 'regeneration'
                 await update_disease_status(disease_id, "regeneration")
-                # Regenerate specific disease
-                await execute_operation(f"Cache regeneration for disease {disease_id}", regenerate_single_disease, disease_id)
+                await execute_operation(
+                    f"Cache regeneration for disease {disease_id}", 
+                    regenerate_single_disease, 
+                    disease_id
+                )
             else:
-                # Regenerate all marked diseases
                 await execute_operation("Cache regeneration for marked diseases", regenerate_cache)
                 
-        elif operation == "restore":
+        elif operation == "--restore":
             if disease_id:
-                # Restore specific disease
-                await execute_operation(f"Restore of disease {disease_id}", restore_single_disease, disease_id)
+                await execute_operation(
+                    f"Restore of disease {disease_id}", 
+                    restore_single_disease, 
+                    disease_id
+                )
             else:
-                # Restore all diseases
                 await execute_operation("Restore from backup", restore_from_backup)
                 
-        elif operation == "full":
+        elif operation == "--full":
             if disease_id:
-                # Full cycle for specific disease
-                await execute_operation(f"Full cycle for disease {disease_id}", perform_full_cycle_for_disease, disease_id)
+                await execute_operation(
+                    f"Full cycle for disease {disease_id}", 
+                    perform_full_cycle_for_disease, 
+                    disease_id
+                )
             else:
-                # Full cycle for all processed diseases
                 await execute_operation("Full cycle for all processed diseases", perform_full_cycle)
                 
         else:

@@ -13,7 +13,7 @@ with proper error handling and logging.
 """
 
 # Import main functions for API
-from .backup import backup_single_disease, backup_processed_diseases
+from .backup import backup_single_disease, backup_processed_diseases, get_processed_diseases_ordered_by_time
 from .clear_cache import clear_single_disease, clear_and_create_empty_files
 from .regenerate import regenerate_single_disease, regenerate_cache, update_disease_status
 from .restore import restore_single_disease, restore_from_backup
@@ -30,10 +30,12 @@ __all__ = [
     # Backup operations
     'backup_single_disease',
     'backup_processed_diseases',
+    'get_processed_diseases_ordered_by_time',
     
     # Clear cache operations
     'clear_single_disease',
     'clear_and_create_empty_files',
+    'ensure_backup_exists',
     
     # Regeneration operations
     'regenerate_single_disease',

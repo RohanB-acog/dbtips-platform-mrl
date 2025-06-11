@@ -7,10 +7,13 @@ import asyncio
 import json
 import sys
 from sqlalchemy import select, update
-from datetime import datetime
+from datetime import datetime, timedelta
 from .utils import (
     setup_logging,
     log_error_to_json,
+    find_latest_backup_for_disease,
+    sanitize_disease_id,
+    to_dossier_status_id,
     DISEASE_CACHE_DIR,
     BASE_DIR
 )
@@ -19,12 +22,19 @@ import tzlocal
 # Import database models
 sys.path.append(BASE_DIR)
 from build_dossier import SessionLocal
-from db.models import DiseasesDossierStatus
+from db.models import DiseaseDossierStatus
 from graphrag_service import get_redis
+
+# Import backup function from backup module
+from .backup import backup_single_disease
+
 
 async def update_disease_status(disease_id, status):
     """Update the status of a specific disease with current timestamp."""
     logger = setup_logging("update_status")
+    
+    # Convert disease_id to the format used in disease_dossier_status (spaces)
+    dossier_status_id = to_dossier_status_id(disease_id)
     
     try:
         async with SessionLocal() as db:
@@ -34,14 +44,14 @@ async def update_disease_status(disease_id, status):
             # For other statuses, only update the status field
             if status == "regeneration":
                 update_stmt = (
-                    update(DiseasesDossierStatus)
-                    .where(DiseasesDossierStatus.id == disease_id)
+                    update(DiseaseDossierStatus)
+                    .where(DiseaseDossierStatus.disease == dossier_status_id)
                     .values(status=status, submission_time=current_time)
                 )
             else:
                 update_stmt = (
-                    update(DiseasesDossierStatus)
-                    .where(DiseasesDossierStatus.id == disease_id)
+                    update(DiseaseDossierStatus)
+                    .where(DiseaseDossierStatus.disease == dossier_status_id)
                     .values(status=status)
                 )
                 
@@ -49,13 +59,13 @@ async def update_disease_status(disease_id, status):
             await db.commit()
             
             if status == "regeneration":
-                logger.info(f"Successfully updated disease {disease_id} status to '{status}' with new submission_time {current_time}")
+                logger.info(f"Successfully updated disease {disease_id} (dossier ID: {dossier_status_id}) status to '{status}' with new submission_time {current_time}")
             else:
-                logger.info(f"Successfully updated disease {disease_id} status to '{status}'")
+                logger.info(f"Successfully updated disease {disease_id} (dossier ID: {dossier_status_id}) status to '{status}'")
                 
             return True
     except Exception as e:
-        error_msg = f"Error updating disease {disease_id} status to '{status}': {str(e)}"
+        error_msg = f"Error updating disease {disease_id} (dossier ID: {dossier_status_id}) status to '{status}': {str(e)}"
         logger.error(error_msg)
         log_error_to_json(disease_id, "clear_file_error", error_msg, module="clear_cache")
         return False
@@ -66,10 +76,13 @@ async def clear_disease_file(disease_id):
     logger = setup_logging("clear_disease")
     logger.info(f"Clearing cache file for disease: {disease_id}")
     
+    # Sanitize disease ID for file operations
+    sanitized_id = sanitize_disease_id(disease_id)
+    
     # Ensure cache directory exists
     os.makedirs(DISEASE_CACHE_DIR, exist_ok=True)
     
-    file_path = os.path.join(DISEASE_CACHE_DIR, f"{disease_id}.json")
+    file_path = os.path.join(DISEASE_CACHE_DIR, f"{sanitized_id}.json")
     
     try:
         # Remove file if it exists
@@ -101,6 +114,7 @@ async def clear_redis_cache_for_disease(disease_id):
         logger.info("Connected to Redis successfully")
         
         # Get keys related to this disease
+        # Use original ID for Redis keys as they may not use the sanitized format
         pattern = f"*{disease_id}*"
         keys = redis.keys(pattern)
         
@@ -120,12 +134,41 @@ async def clear_redis_cache_for_disease(disease_id):
         return False
 
 
+async def ensure_backup_exists(disease_id):
+    """Ensure that a backup exists for a specific disease, create one if not."""
+    logger = setup_logging("ensure_backup")
+    
+    # Check if backup exists for the disease
+    existing_backup = find_latest_backup_for_disease(disease_id)
+    
+    if existing_backup:
+        logger.info(f"Found existing backup for disease {disease_id}: {os.path.basename(existing_backup)}")
+        return True
+    else:
+        logger.info(f"No backup found for disease {disease_id}, creating one...")
+        # Create backup using function from backup module
+        backup_result = await backup_single_disease(disease_id)
+        
+        if backup_result:
+            logger.info(f"Successfully created backup for disease {disease_id}")
+            return True
+        else:
+            logger.error(f"Failed to create backup for disease {disease_id}")
+            return False
+
+
 async def clear_single_disease(disease_id):
     """Clear cache for a single disease and update its status."""
     logger = setup_logging("clear_single")
     logger.info(f"Starting cache clearing for disease: {disease_id}")
     
-    # First update status to 'regeneration'
+    # First ensure a backup exists, create one if not
+    backup_check = await ensure_backup_exists(disease_id)
+    if not backup_check:
+        logger.error(f"Cannot proceed with clearing cache for disease {disease_id} without a backup")
+        return False
+    
+    # Update status to 'regeneration'
     status_update = await update_disease_status(disease_id, "regeneration")
     if not status_update:
         logger.warning(f"Failed to update status for disease {disease_id}, but continuing with clearing")
@@ -146,24 +189,21 @@ async def clear_single_disease(disease_id):
 
 
 async def clear_and_create_empty_files():
-    """Legacy function for backwards compatibility."""
-    logger = setup_logging("clear_cache_legacy")
-    logger.warning("Legacy clear_cache function called. This is deprecated.")
+    """Clear all processed diseases after ensuring backups exist."""
+    logger = setup_logging("clear_cache_all")
+    logger.info("Starting cache clearing for all processed diseases")
     
     # For compatibility with the old approach, we'll get all processed diseases
-    # and update their status
     try:
         async with SessionLocal() as db:
-            one_week_ago = datetime.now(tzlocal.get_localzone()) - timedelta(days=7)
-            
-            # Select diseases with 'processed' status and processed less than a week ago
+            # Select diseases with 'processed' status
             result = await db.execute(
-                select(DiseasesDossierStatus).where(
-                    DiseasesDossierStatus.status == "processed"
+                select(DiseaseDossierStatus).where(
+                    DiseaseDossierStatus.status == "processed"
                 )
             )
             disease_records = result.scalars().all()
-            disease_ids = [record.id for record in disease_records]
+            disease_ids = [to_file_system_id(record.disease) for record in disease_records]
     except Exception as e:
         logger.error(f"Error getting processed diseases: {str(e)}")
         return False
@@ -172,14 +212,31 @@ async def clear_and_create_empty_files():
         logger.warning("No processed diseases found to clear.")
         return False
         
-    # Clear each disease
-    success_count = 0
+    # Ensure backups exist for all diseases first
+    logger.info(f"Ensuring backups exist for {len(disease_ids)} diseases...")
+    diseases_with_backups = []
     for disease_id in disease_ids:
+        backup_exists = await ensure_backup_exists(disease_id)
+        if backup_exists:
+            diseases_with_backups.append(disease_id)
+        else:
+            logger.warning(f"Skipping disease {disease_id} as backup creation failed")
+    
+    if not diseases_with_backups:
+        logger.error("Could not ensure backups for any diseases, aborting clear operation")
+        return False
+    
+    # Clear each disease that has a backup
+    success_count = 0
+    for disease_id in diseases_with_backups:
         result = await clear_single_disease(disease_id)
         if result:
             success_count += 1
+            
+        # Small delay between operations
+        await asyncio.sleep(1)
     
-    logger.info(f"Successfully cleared {success_count}/{len(disease_ids)} diseases")
+    logger.info(f"Successfully cleared {success_count}/{len(diseases_with_backups)} diseases")
     return success_count > 0
 
 
@@ -194,9 +251,12 @@ async def main():
         else:
             print(f"Cache clearing for disease {disease_id} failed. Check logs for details.")
     else:
-        # Otherwise use legacy function
-        print("No disease ID provided. Please specify a disease ID to clear.")
-        print("Usage: python -m cache_management.clear_cache <disease_id>")
+        # Clear all processed diseases
+        result = await clear_and_create_empty_files()
+        if result:
+            print("Cache clearing for all processed diseases completed successfully.")
+        else:
+            print("Cache clearing failed. Check logs for details.")
 
 
 if __name__ == "__main__":
