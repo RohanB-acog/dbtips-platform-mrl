@@ -1230,7 +1230,7 @@ async def get_indication_pipeline(request: DiseasesRequest,
 
 
     try:
-        response = {"indication_pipeline": []}
+        response = {"indication_pipeline": {}}
         if build_cache == True:
             if is_rate_limited():
                 remaining_time = int(rate_limited_until - time.time())
@@ -2407,10 +2407,11 @@ async def get_rna_sequence(
                     print(f"Record with ID {disease} added to the disease table.")
                 else:
                     save_response_to_file(cached_file_path, cached_responses)
-            response.update(cached_data)
+            
             await set_cached_response(redis, key, response)
 
         # Return the JSON response from the API
+        response.update(cached_data)
         return response
 
     except Exception as e:
