@@ -10,7 +10,7 @@ import { useChatStore } from 'chatbot-component';
 import BotIcon from '../../assets/bot.svg?react';
 import { preprocessRnaseqData } from '../../utils/llmUtils';
 
-import ExportButton from '../../components/testExportButton';
+import ExportButton from '../../components/exportButton';
 import {convertToArray} from '../../utils/helper';
 const { Option } = Select;
 // Move constants outside component to prevent recreation
@@ -104,7 +104,6 @@ useEffect(() => {
 		bulkRnaCountInHuman,
 		singleRnaCountInHuman,
 		microarrayCountInHuman,
-		controlSampleCount,
 		diseasedSampleCount,
 		bothSampleCount,
 		unknownSampleCount,
@@ -400,7 +399,6 @@ useEffect(() => {
 					<div className='mt-2'>
 						<span className='font-bold'>Sample Types: </span>
 						<span>
-							<span className='text-sky-800'>{controlSampleCount}</span> Control, {' '}
 							<span className='text-sky-800'>{diseasedSampleCount}</span> Diseased, {' '}
 							<span className='text-sky-800'>{bothSampleCount}</span> Both (Control+Diseased), {' '}
 							<span className='text-sky-800'>{unknownSampleCount}</span> Unknown
