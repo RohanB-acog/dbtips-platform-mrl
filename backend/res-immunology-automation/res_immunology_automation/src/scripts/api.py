@@ -2690,11 +2690,12 @@ async def plot_locus_zoom(request: DiseasesRequest, redis: Redis = Depends(get_r
 
 semaphore = asyncio.Semaphore(1)
 @app.post("/disease-profile/genetic_testing_registery-semaphore/", tags=["Disease Profile"])
-async def get_disease_gtr_data_semaphore(request: DiseasesRequest, redis: Redis = Depends(get_redis), db: Session = Depends(get_db)):
+async def get_disease_gtr_data_semaphore(request: DiseasesRequest, redis: Redis = Depends(get_redis), db: Session = Depends(get_db),build_cache: bool = False
+):
     try:
         async with semaphore:  # This will block concurrent requests
             print(f"lock applied and processing {request.diseases}")
-            response =  await get_disease_gtr_data(request, redis, db)
+            response =  await get_disease_gtr_data(request, redis, db, build_cache)
             print("lock removed")
     except Exception as e:
         raise e

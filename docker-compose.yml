@@ -1,6 +1,6 @@
 services:
   web:
-    container_name: 'dbtips-merge'
+    container_name: 'dbtips-dossier'
     build:
       context: frontend
       dockerfile: Dockerfile
@@ -48,7 +48,6 @@ services:
       - OPEN_CITATIONS_API=${OPEN_CITATIONS_API}
 
     volumes:
-
       - ./backend/res-immunology-automation/res_immunology_automation/src/scripts/cached_data_json:/app/res-immunology-automation/res_immunology_automation/src/scripts/cached_data_json
       - ./backend/data:/app/database
       - ./backend/res-immunology-automation/res_immunology_automation/src/scripts/logs:/app/res-immunology-automation/res_immunology_automation/src/scripts/logs
