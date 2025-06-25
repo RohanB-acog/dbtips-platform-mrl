@@ -2787,7 +2787,8 @@ async def get_disease_gtr_data(
                     save_response_to_file(cached_file_path, cached_responses)
 
                 # Return the data in the response
-                cached_data.append(cached_responses)
+                # cached_data(cached_responses)
+                cached_data[disease.replace("_", " ")] = cached_responses[f"{endpoint}"]
 
         return cached_data
     
