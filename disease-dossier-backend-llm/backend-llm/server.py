@@ -452,6 +452,9 @@ async def update_context(data: UpdateContextRequest):
             dataframe_name = f"{key}_df"
             dataframes[dataframe_name] = df
 
+        if 'patient_stories' not in data.context_variables:
+            app_state['patient_stories_disease'] = None
+        
         app_state['data'] = dataframes
 
         print(app_state['data'])
