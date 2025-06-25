@@ -46,6 +46,7 @@ services:
       - NCBI_EMAIL=${NCBI_EMAIL}
       - NCBI_API_KEY=${NCBI_API_KEY}
       - OPEN_CITATIONS_API=${OPEN_CITATIONS_API}
+      - PATIENT_STORIES_URL=${PATIENT_STORIES_URL}
 
     volumes:
       - ./backend/res-immunology-automation/res_immunology_automation/src/scripts/cached_data_json:/app/res-immunology-automation/res_immunology_automation/src/scripts/cached_data_json
