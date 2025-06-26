@@ -314,8 +314,8 @@ async def run_endpoints(job_data):
                 try:
                     request_data = DiseasesRequest(diseases=unique_diseases)
                     logging.info(f"\t\t\tCalling {endpoint.__name__} with all diseases: {unique_diseases}")
-                    if endpoint.__name__ in ['get_network_biology_semaphore', 'get_indication_pipeline_semaphore', 'get_complete_indication_pipeline']:
-                        response = await endpoint(request_data, db=db )
+                    if endpoint.__name__ in ['get_network_biology_semaphore', 'get_indication_pipeline_semaphore']:
+                        response = await endpoint(request_data, db=db, build_cache=True )
                     elif endpoint.__name__ in ["get_top_10_literature", 'get_key_influencers']:
                         response = await endpoint(request_data)
                     elif endpoint.__name__ in ['get_evidence_literature_semaphore', 'get_diseases_profiles_llm', 'get_disease_gtr_data_semaphore', 'pgs_catalog_data']:
@@ -373,9 +373,9 @@ async def run_endpoints(job_data):
                         logging.info(f"\t\t\tCalling {endpoint.__name__} for target: {target} and disease: {oth_inp}")
                     
                     if endpoint.__name__ in ['get_evidence_target_literature']:
-                        response = await endpoint(request_data, db=db )
+                        response = await endpoint(request_data, db=db, build_cache=True )
                     else:
-                        response = await endpoint(request_data, redis=redis, db=db )
+                        response = await endpoint(request_data, redis=redis, db=db, build_cache=True )
 
                 except Exception as e:
                     logging.error(f"\t\t\t\tError calling {endpoint.__name__} for  {target} and {disease}: {e}")

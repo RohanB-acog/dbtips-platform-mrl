@@ -929,11 +929,11 @@ async def get_protein_structure(request: TargetOnlyRequest, redis: Redis = Depen
 
 semaphore = asyncio.Semaphore(1)
 @app.post("/market-intelligence/target-pipeline-all-semaphore/", tags=["Market Intelligence"])
-async def get_target_pipeline_all_semaphore(request: TargetRequest, redis: Redis = Depends(get_redis), db: Session = Depends(get_db)):
+async def get_target_pipeline_all_semaphore(request: TargetRequest, redis: Redis = Depends(get_redis), db: Session = Depends(get_db), build_cache: bool=False):
     try:
         async with semaphore:  # This will block concurrent requests
             print(f"lock applied and processing {request.diseases}")
-            response =  await get_target_pipeline_all(request, redis, db)
+            response =  await get_target_pipeline_all(request, redis, db, build_cache)
             print("lock removed")
     except Exception as e:
         raise e
@@ -945,6 +945,7 @@ async def get_target_pipeline_all(
     request: TargetRequest,
     redis: Redis = Depends(get_redis),
     db: Session = Depends(get_db),
+    build_cache: bool = False
 ):
     # Validate and normalize target and diseases
     target = request.target.strip().lower()
@@ -1075,82 +1076,84 @@ async def get_target_pipeline_all(
     analyzer = TargetAnalyzer(target)
 
     try:
-        # Check for rate limiting
-        if is_rate_limited():
-            remaining_time = int(rate_limited_until - time.time())
-            raise HTTPException(status_code=429, detail=f"Rate limit in effect. Try again after {remaining_time} seconds.")
+        response = {}
+        if build_cache == True:
+            # Check for rate limiting
+            if is_rate_limited():
+                remaining_time = int(rate_limited_until - time.time())
+                raise HTTPException(status_code=429, detail=f"Rate limit in effect. Try again after {remaining_time} seconds.")
 
-        # Try Open Targets known drugs
-        ot_response = analyzer.get_known_drugs()
-        print(f"[DEBUG] OpenTargets raw response: {ot_response}")
-        ot_entries = parse_knowndrugs_all(ot_response, diseases)
-        print(f"[DEBUG] OpenTargets returned {len(ot_entries)} entries for {target}")
+            # Try Open Targets known drugs
+            ot_response = analyzer.get_known_drugs()
+            print(f"[DEBUG] OpenTargets raw response: {ot_response}")
+            ot_entries = parse_knowndrugs_all(ot_response, diseases)
+            print(f"[DEBUG] OpenTargets returned {len(ot_entries)} entries for {target}")
 
-        # Try Strapi
-        strapi_entries = get_target_pipeline_strapi_all(diseases, target)
-        print(f"[DEBUG] Strapi returned {len(strapi_entries)} entries for {target}")
+            # Try Strapi
+            strapi_entries = get_target_pipeline_strapi_all(diseases, target)
+            print(f"[DEBUG] Strapi returned {len(strapi_entries)} entries for {target}")
 
-        # Combine results
-        all_entries.extend(ot_entries)
-        all_entries.extend(strapi_entries)
+            # Combine results
+            all_entries.extend(ot_entries)
+            all_entries.extend(strapi_entries)
 
-        # Enrich combined list (NCT titles, PMIDs, outcome statuses)
-        for entry in all_entries:
-            ids = [u.split("/")[-1] for u in entry.get("Source URLs", [])]
-            entry["NctIdTitleMapping"] = fetch_nct_titles(ids)
+            # Enrich combined list (NCT titles, PMIDs, outcome statuses)
+            for entry in all_entries:
+                ids = [u.split("/")[-1] for u in entry.get("Source URLs", [])]
+                entry["NctIdTitleMapping"] = fetch_nct_titles(ids)
 
-        pmid_map = get_disease_pmid_nct_mapping([d.replace("_", " ") for d in diseases])
-        all_entries = get_pmids_for_nct_ids_target_pipeline(all_entries, pmid_map)
-        all_entries = add_outcome_status_target_pipeline(all_entries)
-        # print("all entries in pipeline: ", all_entries)
-        # Deduplicate entries
-        all_entries = remove_duplicates(all_entries)
-        # print("all_entries after duplicates: ", all_entries)
-        # Build available diseases
-        available = sorted({
-            e["Disease"].strip().replace("_", " ").lower()
-            for e in all_entries if e.get("Disease")
-        })
-        # print("available: ", available)
-        # Combine cached and fresh data
-        all_entries.extend(cached_data)
-        all_entries = remove_duplicates(all_entries)
+            pmid_map = get_disease_pmid_nct_mapping([d.replace("_", " ") for d in diseases])
+            all_entries = get_pmids_for_nct_ids_target_pipeline(all_entries, pmid_map)
+            all_entries = add_outcome_status_target_pipeline(all_entries)
+            # print("all entries in pipeline: ", all_entries)
+            # Deduplicate entries
+            all_entries = remove_duplicates(all_entries)
+            # print("all_entries after duplicates: ", all_entries)
+            # Build available diseases
+            available = sorted({
+                e["Disease"].strip().replace("_", " ").lower()
+                for e in all_entries if e.get("Disease")
+            })
+            # print("available: ", available)
+            # Combine cached and fresh data
+            all_entries.extend(cached_data)
+            all_entries = remove_duplicates(all_entries)
 
-        # Step 4: Save fresh data to filesystem
-        # Save to target.json
-        cached_responses_target = load_response_from_file(target_file_path) if os.path.exists(target_file_path) else {}
-        if endpoint in cached_responses_target and "target_pipeline" in cached_responses_target[endpoint]:
-            cached_responses_target[endpoint]["target_pipeline"].extend(all_entries)
-        else:
-            cached_responses_target[endpoint] = {"target_pipeline": all_entries}
-        cached_responses_target[endpoint]["target_pipeline"] = remove_duplicates(cached_responses_target[endpoint]["target_pipeline"])
-        save_response_to_file(target_file_path, cached_responses_target)
-        print(f"Updated cached response in file: {target_file_path}")
-
-        # Save to target-disease*.json files
-        for disease in diseases:
-            disease_file_path = os.path.join(target_disease_cache_dir, f"{target}-{disease}.json")
-            disease_data = [
-                entry for entry in all_entries
-                if entry.get("Disease") and entry["Disease"].strip().lower().replace(" ", "_") == disease
-            ]
-            cached_responses_disease = load_response_from_file(disease_file_path) if os.path.exists(disease_file_path) else {}
-            if endpoint in cached_responses_disease and "target_pipeline" in cached_responses_disease[endpoint]:
-                cached_responses_disease[endpoint]["target_pipeline"].extend(disease_data)
+            # Step 4: Save fresh data to filesystem
+            # Save to target.json
+            cached_responses_target = load_response_from_file(target_file_path) if os.path.exists(target_file_path) else {}
+            if endpoint in cached_responses_target and "target_pipeline" in cached_responses_target[endpoint]:
+                cached_responses_target[endpoint]["target_pipeline"].extend(all_entries)
             else:
-                cached_responses_disease[endpoint] = {"target_pipeline": disease_data}
-            cached_responses_disease[endpoint]["target_pipeline"] = remove_duplicates(cached_responses_disease[endpoint]["target_pipeline"])
-            save_response_to_file(disease_file_path, cached_responses_disease)
-            print(f"Updated cached response in file: {disease_file_path}")
+                cached_responses_target[endpoint] = {"target_pipeline": all_entries}
+            cached_responses_target[endpoint]["target_pipeline"] = remove_duplicates(cached_responses_target[endpoint]["target_pipeline"])
+            save_response_to_file(target_file_path, cached_responses_target)
+            print(f"Updated cached response in file: {target_file_path}")
 
-        # Final response
-        response = {
-            "target_pipeline": all_entries,
-            "available_diseases": ["all"] + available
-        }
+            # Save to target-disease*.json files
+            for disease in diseases:
+                disease_file_path = os.path.join(target_disease_cache_dir, f"{target}-{disease}.json")
+                disease_data = [
+                    entry for entry in all_entries
+                    if entry.get("Disease") and entry["Disease"].strip().lower().replace(" ", "_") == disease
+                ]
+                cached_responses_disease = load_response_from_file(disease_file_path) if os.path.exists(disease_file_path) else {}
+                if endpoint in cached_responses_disease and "target_pipeline" in cached_responses_disease[endpoint]:
+                    cached_responses_disease[endpoint]["target_pipeline"].extend(disease_data)
+                else:
+                    cached_responses_disease[endpoint] = {"target_pipeline": disease_data}
+                cached_responses_disease[endpoint]["target_pipeline"] = remove_duplicates(cached_responses_disease[endpoint]["target_pipeline"])
+                save_response_to_file(disease_file_path, cached_responses_disease)
+                print(f"Updated cached response in file: {disease_file_path}")
 
-        # Cache the response in Redis
-        await set_cached_response(redis, key, response)
+            # Final response
+            response = {
+                "target_pipeline": all_entries,
+                "available_diseases": ["all"] + available
+            }
+
+            # Cache the response in Redis
+            await set_cached_response(redis, key, response)
 
         return response
 
@@ -2050,11 +2053,11 @@ async def get_mouse_studies(request: DiseasesRequest, redis: Redis = Depends(get
 semaphore = asyncio.Semaphore(1)
 @app.post("/evidence/network-biology-semaphore/", tags=["Evidence"])
 async def get_network_biology_semaphore(request: DiseasesRequest,
-                            db: Session = Depends(get_db)):
+                            db: Session = Depends(get_db), build_cache=False):
     try:
         async with semaphore:  # This will block concurrent requests
             print(f"lock applied and processing {request.diseases}")
-            response =  await get_network_biology(request, db)
+            response =  await get_network_biology(request, db, build_cache)
             print("lock removed")
     except Exception as e:
         raise e
@@ -2063,7 +2066,8 @@ async def get_network_biology_semaphore(request: DiseasesRequest,
     
 @app.post("/evidence/network-biology/", tags=["Evidence"])
 async def get_network_biology(request: DiseasesRequest,
-                            db: Session = Depends(get_db)):
+                            db: Session = Depends(get_db),
+                            build_cache=False):
     diseases: List[str] = request.diseases
     diseases = [s.strip().lower().replace(" ", "_") for s in diseases]
     diseases_str = "-".join(diseases)
@@ -2101,39 +2105,40 @@ async def get_network_biology(request: DiseasesRequest,
     print("filtered diseases: ", filtered_diseases)
 
     try:
-        for disease in filtered_diseases:
-            disease_record = db.query(Disease).filter_by(id=f"{disease}").first()
-            file_path: str = os.path.join(cache_dir, f"{disease}.json")
+        if build_cache == True:
+            for disease in filtered_diseases:
+                disease_record = db.query(Disease).filter_by(id=f"{disease}").first()
+                file_path: str = os.path.join(cache_dir, f"{disease}.json")
 
-            data=fetch_and_filter_figures_by_disease_and_pmids(disease.replace("_"," "))
-            cached_data[disease.replace("_"," ")] = {"results": data}
+                data=fetch_and_filter_figures_by_disease_and_pmids(disease.replace("_"," "))
+                cached_data[disease.replace("_"," ")] = {"results": data}
 
-            if disease_record is not None:
-                cached_file_path: str = disease_record.file_path
-                cached_responses = load_response_from_file(cached_file_path)
-            else:
-                cached_responses = {}
+                if disease_record is not None:
+                    cached_file_path: str = disease_record.file_path
+                    cached_responses = load_response_from_file(cached_file_path)
+                else:
+                    cached_responses = {}
 
-            cached_responses[f"{endpoint}"] = {"results": data}
+                cached_responses[f"{endpoint}"] = {"results": data}
 
-            if disease_record is None:
-                save_response_to_file(file_path, cached_responses)
-                new_record = Disease(id=disease, file_path=file_path)  # Create a new instance of the identified model
-                db.add(new_record)  # Add the new record to the session
-                db.commit()  # Commit the transaction to save the record to the database
-                db.refresh(new_record)  # Refresh the instance to reflect any changes from the DB (like auto-generated
-                # fields)
-                print(f"Record with ID {disease} added to the disease table.")
-            else:
-                save_response_to_file(cached_file_path, cached_responses)
-        cached_data=enrich_disease_pathway_results(cached_data)    
+                if disease_record is None:
+                    save_response_to_file(file_path, cached_responses)
+                    new_record = Disease(id=disease, file_path=file_path)  # Create a new instance of the identified model
+                    db.add(new_record)  # Add the new record to the session
+                    db.commit()  # Commit the transaction to save the record to the database
+                    db.refresh(new_record)  # Refresh the instance to reflect any changes from the DB (like auto-generated
+                    # fields)
+                    print(f"Record with ID {disease} added to the disease table.")
+                else:
+                    save_response_to_file(cached_file_path, cached_responses)
+            cached_data=enrich_disease_pathway_results(cached_data)    
         return cached_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/evidence/search-patent/", tags=["Evidence"])
 async def search_patents(request: TargetRequest, redis: Redis = Depends(get_redis),
-                         db: Session = Depends(get_db)):
+                         db: Session = Depends(get_db), build_cache: bool=False):
     """
     Return patents for target and diseases.
     """
@@ -2174,59 +2179,60 @@ async def search_patents(request: TargetRequest, redis: Redis = Depends(get_redi
     disease_synonyms_file: str = "../disease_data/diseases_synonyms.json"
 
     try:
-        for disease in filtered_diseases:
-            disease_key = disease.replace(" ", "_")
-            target_disease_record = db.query(TargetDisease).filter_by(id=f"{target}-{disease_key}").first()
-            file_path: str = os.path.join(cache_dir, f"{target}-{disease_key}.json")
-            if target_disease_record is not None:
-                cached_file_path: str = target_disease_record.file_path
-                cached_responses = load_response_from_file(cached_file_path)
-            else:
-                cached_responses = {}
+        if build_cache==True:
+            for disease in filtered_diseases:
+                disease_key = disease.replace(" ", "_")
+                target_disease_record = db.query(TargetDisease).filter_by(id=f"{target}-{disease_key}").first()
+                file_path: str = os.path.join(cache_dir, f"{target}-{disease_key}.json")
+                if target_disease_record is not None:
+                    cached_file_path: str = target_disease_record.file_path
+                    cached_responses = load_response_from_file(cached_file_path)
+                else:
+                    cached_responses = {}
 
-            # Target-only search
-            if disease == "no-disease":
-                query = build_query_target(target, target_terms_file)
-            else:
-                query = build_query(target, disease, target_terms_file, disease_synonyms_file)
-            print(query)
+                # Target-only search
+                if disease == "no-disease":
+                    query = build_query_target(target, target_terms_file)
+                else:
+                    query = build_query(target, disease, target_terms_file, disease_synonyms_file)
+                print(query)
 
-            params = {
-                "engine": "google_patents",
-                "q": query,
-                "api_key": SERP_API_KEY,
-                "language": "ENGLISH",
-                "num": 100
-            }
+                params = {
+                    "engine": "google_patents",
+                    "q": query,
+                    "api_key": SERP_API_KEY,
+                    "language": "ENGLISH",
+                    "num": 100
+                }
 
-            try:
-                response = requests.get(SERP_API_URL, params=params)
-                response.raise_for_status()
-                data = response.json()
-                keys_to_extract = ["patent_id", "pdf", "title", "assignee", "filing_date", "grant_date"]
-                filtered_results = []
-                for entry in data.get("organic_results", []):
-                    filtered_data = {key: entry.get(key, "") for key in keys_to_extract}
-                    country_status = entry.get("country_status", {})
-                    filtered_data["country_status"] = country_status
-                    filtered_data["expiry_date"] = add_years(filtered_data["filing_date"], 20) if filtered_data["filing_date"] else ""
-                    filtered_results.append(filtered_data)
-                cached_data[disease.replace("_", " ")] = {"results": filtered_results}
-                cached_responses[f"{endpoint}"] = {"results": filtered_results}
-            except requests.RequestException as exc:
-                raise HTTPException(status_code=exc.response.status_code, detail=f"Error: {exc.response.text}")
+                try:
+                    response = requests.get(SERP_API_URL, params=params)
+                    response.raise_for_status()
+                    data = response.json()
+                    keys_to_extract = ["patent_id", "pdf", "title", "assignee", "filing_date", "grant_date"]
+                    filtered_results = []
+                    for entry in data.get("organic_results", []):
+                        filtered_data = {key: entry.get(key, "") for key in keys_to_extract}
+                        country_status = entry.get("country_status", {})
+                        filtered_data["country_status"] = country_status
+                        filtered_data["expiry_date"] = add_years(filtered_data["filing_date"], 20) if filtered_data["filing_date"] else ""
+                        filtered_results.append(filtered_data)
+                    cached_data[disease.replace("_", " ")] = {"results": filtered_results}
+                    cached_responses[f"{endpoint}"] = {"results": filtered_results}
+                except requests.RequestException as exc:
+                    raise HTTPException(status_code=exc.response.status_code, detail=f"Error: {exc.response.text}")
 
-            if target_disease_record is None:
-                save_response_to_file(file_path, cached_responses)
-                new_record = TargetDisease(id=f"{target}-{disease_key}", file_path=file_path)
-                db.add(new_record)
-                db.commit()
-                db.refresh(new_record)
-                print(f"Record with ID {target}-{disease} added to the target_disease table.")
-            else:
-                save_response_to_file(cached_file_path, cached_responses)
+                if target_disease_record is None:
+                    save_response_to_file(file_path, cached_responses)
+                    new_record = TargetDisease(id=f"{target}-{disease_key}", file_path=file_path)
+                    db.add(new_record)
+                    db.commit()
+                    db.refresh(new_record)
+                    print(f"Record with ID {target}-{disease} added to the target_disease table.")
+                else:
+                    save_response_to_file(cached_file_path, cached_responses)
 
-        await set_cached_response(redis, redis_key, cached_data)
+            await set_cached_response(redis, redis_key, cached_data)
         return cached_data
 
     except Exception as e:
