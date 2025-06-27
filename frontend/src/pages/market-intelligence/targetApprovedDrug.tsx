@@ -170,7 +170,7 @@ const ApprovedDrug = ({
 console.log("filtered", filtered,data);
     // Unique data filtering
     const uniqueKeys = new Set(
-      filtered.map((item) => `${item.Disease}-${item.Drug.toLowerCase()}`)
+      filtered?.map((item) => `${item.Disease}-${item.Drug.toLowerCase()}`)
     );
 
     return Array.from(uniqueKeys).map(
