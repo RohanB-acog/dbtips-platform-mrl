@@ -158,7 +158,7 @@ const CompetitiveLandscape = ({target,indications}) => {
     { field: "Mechanism of Action", flex: 3 },
   ];
   const processedData = useMemo(() => {
-    if (targetData) {
+    if (targetData && Object.keys(targetData).length > 0) {
       console.log("targetData", targetData);
       return targetData.target_pipeline;
     }
@@ -268,7 +268,7 @@ const CompetitiveLandscape = ({target,indications}) => {
           targetData &&
           targetDataFetched && (
             <div>
-              { processedData.length>0 &&<div className="flex justify-between my-2">
+              { processedData?.length>0 &&<div className="flex justify-between my-2">
                 <div className="flex gap-2">
                   <div>
                     <span className="mt-1 mr-1">Disease: </span>
@@ -334,7 +334,7 @@ const CompetitiveLandscape = ({target,indications}) => {
                  
                 />
                 {
-                  filteredData.length>0&&
+                  filteredData?.length>0&&
                   <p>
                   * The failed entries for the targets include trials that were
                   withdrawn or terminated due to unmet endpoints, financial constraints,
