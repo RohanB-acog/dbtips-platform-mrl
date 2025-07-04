@@ -363,6 +363,74 @@ def get_pmids_indication_pipeline(disease_name: str) -> List[str]:
         raise e
     return data.get("esearchresult", {}).get("idlist", [])
 
+# def get_nctids_from_pmid_efetch(pmid_list: List[str]) -> Dict[str, List[str]]:
+#     """
+#     Fetch all associated NCT IDs for a list of PMIDs using the Entrez API (efetch) with POST method.
+#     Returns a dictionary with PMID as the key and a list of associated NCT IDs as the value.
+
+#     Args:
+#         pmid_list (List[str]): List of PubMed IDs.
+
+#     Returns:
+#         Dict[str, List[str]]: A dictionary where each key is a PMID and the value is a list of associated NCT IDs.
+#     """
+#     base_url = f"{NCBI_BASE_URL}/efetch.fcgi"
+    
+#     try:
+#         # Join the list of PMIDs into a comma-separated string
+#         pmid_str = ",".join(pmid_list)
+        
+#         params = {
+#             "db": "pubmed",
+#             "id": pmid_str,
+#             "retmode": "xml",
+#             "api_key": NCBI_API_KEY
+#         }
+        
+#         # Make a POST request to avoid URL length limitations
+#         # response = requests.post(base_url, data=params)
+#         # if response.status_code == 429:
+#         #     # raise Exception("Too Many Requests: You are being rate-limited. Please try again later.")
+#         #     rate_limited_until = time.time() + RATE_LIMIT_RETRY_PERIOD
+#         #     raise HTTPException(status_code=429, detail=f"Rate limit exceeded. Try again after {RATE_LIMIT_RETRY_PERIOD} seconds.")
+        
+#         response = get_data_from_pubmed(base_url, params)
+#         time.sleep(0.2)
+        
+#         pmid_nct_dict: Dict[str, List[str]] = {}
+        
+#         if response.status_code == 200:
+#             root = ET.fromstring(response.content)
+            
+#             # Iterate over each PubmedArticle in the response
+#             for pubmed_article in root.findall(".//PubmedArticle"):
+#                 # Extract the PMID for this article
+#                 pmid = pubmed_article.find(".//PMID").text
+                
+#                 # Initialize a list to store NCT IDs for this PMID
+#                 nct_ids: List[str] = []
+                
+#                 # Find DataBank entries that may contain NCT IDs
+#                 for databank in pubmed_article.findall(".//DataBank"):
+#                     databank_name = databank.find("DataBankName")
+#                     if databank_name is not None and databank_name.text == "ClinicalTrials.gov":
+#                         accession_numbers = databank.findall(".//AccessionNumber")
+#                         for accession_number in accession_numbers:
+#                             if accession_number is not None and accession_number.text:
+#                                 nct_ids.append(accession_number.text)
+                
+#                 # If there are associated NCT IDs, add them to the dictionary
+#                 if nct_ids:
+#                     pmid_nct_dict[pmid] = nct_ids
+    
+#     except HTTPException as e:
+#         raise e
+    
+#     except Exception as e:
+#         print(f"An error occurred while fetching NCT IDS for given PMID '{pmid_str}': {e}")
+#         raise e
+#     return pmid_nct_dict
+
 def get_nctids_from_pmid_efetch(pmid_list: List[str]) -> Dict[str, List[str]]:
     """
     Fetch all associated NCT IDs for a list of PMIDs using the Entrez API (efetch) with POST method.
@@ -376,59 +444,83 @@ def get_nctids_from_pmid_efetch(pmid_list: List[str]) -> Dict[str, List[str]]:
     """
     base_url = f"{NCBI_BASE_URL}/efetch.fcgi"
     
+    # If the list is very large, process in chunks to avoid memory issues
+    max_chunk_size = 200  # Adjust based on your needs
+    pmid_nct_dict: Dict[str, List[str]] = {}
+    
     try:
-        # Join the list of PMIDs into a comma-separated string
-        pmid_str = ",".join(pmid_list)
-        
-        params = {
-            "db": "pubmed",
-            "id": pmid_str,
-            "retmode": "xml",
-            "api_key": NCBI_API_KEY
-        }
-        
-        # Make a POST request to avoid URL length limitations
-        # response = requests.post(base_url, data=params)
-        # if response.status_code == 429:
-        #     # raise Exception("Too Many Requests: You are being rate-limited. Please try again later.")
-        #     rate_limited_until = time.time() + RATE_LIMIT_RETRY_PERIOD
-        #     raise HTTPException(status_code=429, detail=f"Rate limit exceeded. Try again after {RATE_LIMIT_RETRY_PERIOD} seconds.")
-        
-        response = get_data_from_pubmed(base_url, params)
-        time.sleep(0.2)
-        
-        pmid_nct_dict: Dict[str, List[str]] = {}
-        
-        if response.status_code == 200:
-            root = ET.fromstring(response.content)
+        # Process PMIDs in chunks if the list is large
+        for i in range(0, len(pmid_list), max_chunk_size):
+            chunk = pmid_list[i:i + max_chunk_size]
+            pmid_str = ",".join(chunk)
             
-            # Iterate over each PubmedArticle in the response
-            for pubmed_article in root.findall(".//PubmedArticle"):
-                # Extract the PMID for this article
-                pmid = pubmed_article.find(".//PMID").text
+            # Prepare data for POST request body
+            post_data = {
+                "db": "pubmed",
+                "id": pmid_str,
+                "retmode": "xml"
+            }
+            
+            # Add API key if available
+            if NCBI_API_KEY:
+                post_data["api_key"] = NCBI_API_KEY
+            
+            # Make POST request with data in the request body
+            response = requests.post(
+                base_url, 
+                data=post_data,
+                headers={'Content-Type': 'application/x-www-form-urlencoded'}
+            )
+            
+            # Handle rate limiting
+            if response.status_code == 429:
+                rate_limited_until = time.time() + RATE_LIMIT_RETRY_PERIOD
+                raise HTTPException(
+                    status_code=429, 
+                    detail=f"Rate limit exceeded. Try again after {RATE_LIMIT_RETRY_PERIOD} seconds."
+                )
+            
+            # Alternative: use your existing rate-limited function
+            # response = get_data_from_pubmed(base_url, post_data, method='POST')
+            
+            time.sleep(0.2)  # Rate limiting
+            
+            if response.status_code == 200:
+                root = ET.fromstring(response.content)
                 
-                # Initialize a list to store NCT IDs for this PMID
-                nct_ids: List[str] = []
-                
-                # Find DataBank entries that may contain NCT IDs
-                for databank in pubmed_article.findall(".//DataBank"):
-                    databank_name = databank.find("DataBankName")
-                    if databank_name is not None and databank_name.text == "ClinicalTrials.gov":
-                        accession_numbers = databank.findall(".//AccessionNumber")
-                        for accession_number in accession_numbers:
-                            if accession_number is not None and accession_number.text:
-                                nct_ids.append(accession_number.text)
-                
-                # If there are associated NCT IDs, add them to the dictionary
-                if nct_ids:
-                    pmid_nct_dict[pmid] = nct_ids
+                # Iterate over each PubmedArticle in the response
+                for pubmed_article in root.findall(".//PubmedArticle"):
+                    # Extract the PMID for this article
+                    pmid_element = pubmed_article.find(".//PMID")
+                    if pmid_element is not None:
+                        pmid = pmid_element.text
+                        
+                        # Initialize a list to store NCT IDs for this PMID
+                        nct_ids: List[str] = []
+                        
+                        # Find DataBank entries that may contain NCT IDs
+                        for databank in pubmed_article.findall(".//DataBank"):
+                            databank_name = databank.find("DataBankName")
+                            if databank_name is not None and databank_name.text == "ClinicalTrials.gov":
+                                accession_numbers = databank.findall(".//AccessionNumber")
+                                for accession_number in accession_numbers:
+                                    if accession_number is not None and accession_number.text:
+                                        nct_ids.append(accession_number.text)
+                        
+                        # Add to dictionary (even if empty list, to track processed PMIDs)
+                        pmid_nct_dict[pmid] = nct_ids
+            else:
+                print(f"Error fetching chunk {i//max_chunk_size + 1}: HTTP {response.status_code}")
+                print(f"Response: {response.text}")
     
     except HTTPException as e:
         raise e
     
     except Exception as e:
-        print(f"An error occurred while fetching NCT IDS for given PMID '{pmid_str}': {e}")
+        pmid_str = ",".join(pmid_list[:5]) + "..." if len(pmid_list) > 5 else ",".join(pmid_list)
+        print(f"An error occurred while fetching NCT IDs for PMIDs '{pmid_str}': {e}")
         raise e
+    
     return pmid_nct_dict
 
 def fetch_pubmed_article_data(pmids: List[str]) -> List[Dict[str, Any]]:
